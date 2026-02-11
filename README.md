@@ -1,1 +1,309 @@
 # TaskTasker
+
+**TaskTasker** is a modern task + planning web app built for people who think in trees, not flat lists.
+
+It supports **endlessly nested tasks**, where every item:
+- Can have its own due date
+- Has a workflow status (todo, in progress, blocked, delayed, done)
+- Can depend on other tasks
+- Can be reordered and moved anywhere in the tree
+
+TaskTasker is built as a **PWA (Progressive Web App)** and is installable on Android with push notifications.
+
+Website: https://tasktasker.com
+
+---
+
+# Project Vision
+
+TaskTasker is designed around a simple idea:
+
+> Every task is a node.  
+> Every node is first-class.
+
+Unlike traditional to-do apps that flatten work into lists, TaskTasker treats planning as a structured hierarchy with workflow state and dependency awareness.
+
+Core principles:
+
+- Infinite nesting (no depth limits)
+- Clean tree structure
+- Flexible workflow states
+- Dependency tracking
+- Installable web app
+- Built to scale cleanly
+
+This is not a bloated project management suite.
+It is a structured thinking tool.
+
+---
+
+# Core Features (MVP)
+
+### Tree-Based Tasks
+- Unlimited nested subtasks
+- Collapse / expand
+- Drag & drop reordering
+- Move tasks between parents
+
+### Workflow Status
+Each task has a status:
+
+- `todo`
+- `in_progress`
+- `blocked`
+- `delayed`
+- `done`
+
+This replaces simple checkbox-only logic.
+
+### Dependencies
+Tasks can depend on other tasks.
+Example:
+- “Launch site” depends on “Finish landing page”
+- “Deploy backend” depends on “Finalize database schema”
+
+Blocked tasks can be:
+- Automatically detected
+- Highlighted visually
+- Filtered in views
+
+### Due Dates
+Every node can have:
+- Optional due date
+- Overdue detection
+- Upcoming filtering
+
+### Views
+- Tree View (default)
+- Today
+- Upcoming
+- Overdue
+- Blocked
+- Completed
+
+### Authentication
+- Google SSO via OAuth (Auth.js / NextAuth)
+
+### Notifications
+- Web Push (FCM)
+- Due date reminders
+- Installable on Android
+
+---
+
+# Architecture Overview
+
+## Frontend
+
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- dnd-kit (tree drag & drop)
+- Zod (validation)
+
+PWA enabled for:
+- Installable app
+- Offline-ready structure (later sync queue)
+
+---
+
+## Backend
+
+- Postgres (primary database)
+- Prisma (ORM + migrations)
+- Next.js Route Handlers / Server Actions
+
+Optional later:
+- Redis for job queues
+- Dedicated worker for notifications
+
+---
+
+## Authentication
+
+- Google OAuth
+- Auth.js (NextAuth)
+- Users keyed by stable Google `sub`
+
+---
+
+## Push Notifications
+
+- Firebase Cloud Messaging (FCM)
+- Store user push tokens
+- Cron endpoint to send reminders
+
+---
+
+# Data Model
+
+## Task
+
+Each task is a node in a tree.
+
+Fields:
+
+- id (uuid)
+- user_id
+- parent_id (nullable)
+- title
+- status
+- due_at (nullable)
+- sort_order
+- created_at
+- updated_at
+
+Status is one of:
+
+- todo
+- in_progress
+- blocked
+- delayed
+- done
+
+Tree structure:
+- Adjacency list via `parent_id`
+- Optional materialized path or Postgres ltree for fast subtree queries
+
+---
+
+## TaskDependency
+
+Represents task relationships.
+
+Fields:
+
+- id
+- task_id
+- depends_on_task_id
+- created_at
+
+This allows:
+- Cross-branch dependencies
+- Dependency graphs separate from tree structure
+
+---
+
+# Why This Architecture Scales
+
+The tree structure is independent from workflow logic.
+
+That means we can later add:
+- Recurring tasks
+- Tags
+- Priority levels
+- Task comments
+- Time tracking
+- Attachments
+- Collaboration / multi-user workspaces
+- AI planning assistance
+
+Without restructuring the database.
+
+---
+
+# Project Structure (Planned)
+
+tasktasker/
+apps/
+web/ # Next.js app
+packages/
+db/ # Prisma schema
+ui/ # Shared components (optional)
+docs/
+
+yaml
+Copy code
+
+---
+
+# Development Roadmap
+
+Phase 1:
+- Auth
+- Task CRUD
+- Tree rendering
+- Status support
+
+Phase 2:
+- Drag & drop
+- Move tasks
+- Dependency support
+
+Phase 3:
+- Views (Today, Overdue, Blocked)
+- Push notifications
+
+Phase 4:
+- Offline sync
+- Performance optimization
+
+---
+
+# Tech Stack Summary
+
+Frontend:
+- Next.js
+- TypeScript
+- Tailwind
+- shadcn/ui
+- dnd-kit
+
+Backend:
+- Postgres
+- Prisma
+
+Auth:
+- Auth.js (Google)
+
+Push:
+- Firebase Cloud Messaging
+
+Hosting:
+- Vercel (web)
+- Neon / Supabase (database)
+
+---
+
+# Getting Started (Planned)
+
+Install dependencies:
+
+pnpm install
+
+yaml
+Copy code
+
+Run dev server:
+
+pnpm dev
+
+yaml
+Copy code
+
+Run database migrations:
+
+pnpm prisma migrate dev
+
+yaml
+Copy code
+
+---
+
+# License
+
+TBD
+
+---
+
+# Philosophy
+
+TaskTasker is built around structured clarity.
+
+Tasks should not be flat.
+Work is rarely linear.
+Planning should reflect reality.
+
+Tasks.
+All the way down.
