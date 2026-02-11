@@ -1,0 +1,14 @@
+{
+  "name": "tasktasker",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TaskTasker - Tree-based task management web app",
+  "scripts": {
+    "dev": "cd apps/web && npm run dev",
+    "build": "cd apps/web && npm run build",
+    "start": "cd apps/web && npm start"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
