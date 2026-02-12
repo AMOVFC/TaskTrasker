@@ -8,10 +8,15 @@
     "dev": "npm --prefix apps/web run dev",
     "build": "npm --prefix apps/web ci && npm --prefix apps/web run build",
     "start": "npm --prefix apps/web run start",
-    "deploy": "wrangler pages deploy apps/web/out --project-name tasktasker"
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "devDependencies": {
     "typescript": "^5.3.3",
     "wrangler": "^4.65.0"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "^1.16.4"
   }
 }
