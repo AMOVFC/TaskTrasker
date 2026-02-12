@@ -8,9 +8,10 @@
     "dev": "npm --prefix apps/web run dev",
     "build": "npm --prefix apps/web ci && npm --prefix apps/web run build",
     "start": "npm --prefix apps/web run start",
-    "deploy": "npm run build && npx wrangler pages deploy apps/web/.next"
+    "deploy": "wrangler pages deploy apps/web/out --project-name tasktasker"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "wrangler": "^4.65.0"
   }
 }
