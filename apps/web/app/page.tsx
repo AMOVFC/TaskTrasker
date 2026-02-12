@@ -122,7 +122,7 @@ export default function Home() {
 
             {submitted && (
               <p className="text-green-400 text-sm animate-fade-in">
-                ✓ Thanks! We'll let you know when we launch.
+                ✓ Thanks! We&apos;ll let you know when we launch.
               </p>
             )}
           </div>
