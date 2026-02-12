@@ -6,7 +6,7 @@
   "description": "TaskTasker - Tree-based task management web app",
   "scripts": {
     "dev": "npm --prefix apps/web run dev",
-    "build": "npm --prefix apps/web ci && npm --prefix apps/web run build",
+    "build":"npm --prefix apps/web install --no-audit --no-fund && npm --prefix apps/web run build",
     "start": "npm --prefix apps/web run start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
