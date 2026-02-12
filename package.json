@@ -4,9 +4,10 @@
   "private": true,
   "description": "TaskTasker - Tree-based task management web app",
   "scripts": {
-    "dev": "cd apps/web && npm run dev",
-    "build": "cd apps/web && npm run build",
-    "start": "cd apps/web && npm start"
+    "dev": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/web run build",
+    "start": "npm --prefix apps/web run start",
+    "deploy": "npm run build && npx wrangler pages deploy apps/web/.next"
   },
   "devDependencies": {
     "typescript": "^5.3.3"
