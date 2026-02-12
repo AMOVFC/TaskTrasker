@@ -181,7 +181,7 @@ export default function DemoPage() {
           
           <h1 className="text-4xl font-bold mb-4">Interactive Task Tree Demo</h1>
           <p className="text-slate-300 mb-2">
-            This proof of concept demonstrates TaskTasker's core concept: <strong>every task is a node, and every node is first-class.</strong>
+            This proof of concept demonstrates TaskTasker&apos;s core concept: <strong>every task is a node, and every node is first-class.</strong>
           </p>
           <p className="text-slate-400 text-sm">
             Click arrows to expand/collapse nested tasks. Hover over tasks to see their workflow status.
@@ -217,7 +217,7 @@ export default function DemoPage() {
               </div>
               <h3 className="font-semibold text-sm">Block Detection</h3>
             </div>
-            <p className="text-slate-400 text-sm">See what's blocked and why.</p>
+            <p className="text-slate-400 text-sm">See what&apos;s blocked and why.</p>
           </div>
           
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50 hover:border-slate-600/50 transition-colors">
@@ -263,7 +263,7 @@ export default function DemoPage() {
           <div className="mt-8 p-4 bg-slate-700/30 rounded-lg border border-slate-600/30">
             <p className="text-sm text-slate-300 flex items-center gap-2">
               <Plus className="w-4 h-4" />
-              <span>This is a live demonstration of hierarchical task management. In v1, you'll be able to drag/drop, set due dates, track dependencies, and persist to a database.</span>
+              <span>This is a live demonstration of hierarchical task management. In v1, you&apos;ll be able to drag/drop, set due dates, track dependencies, and persist to a database.</span>
             </p>
           </div>
         </div>
@@ -279,7 +279,7 @@ export default function DemoPage() {
               <strong className="text-slate-100">TaskTasker:</strong> Every task is a tree. A project has subtasks. Subtasks have sub-subtasks. No limits. Every level matters equally.
             </p>
             <p className="pt-4 text-slate-400">
-              This structure mirrors how real work actually happens. Most planning isn't linear—it's deeply nested, interconnected, and evolving.
+              This structure mirrors how real work actually happens. Most planning isn&apos;t linear—it&apos;s deeply nested, interconnected, and evolving.
             </p>
           </div>
         </div>
