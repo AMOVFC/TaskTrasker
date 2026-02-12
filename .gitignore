@@ -14,19 +14,43 @@
 
 # production
 /build
+dist/
 
 # misc
 .DS_Store
+.env.local
+.env.*.local
 *.pem
+*.key
 
-# debug
+# logs
 npm-debug.log*
+npm-error.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env*.local
+# env files
 .env
+.env.production.local
+.env.development.local
+.env.test.local
+
+# IDE and editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+.iml
+.classpath
+.project
+.c9/
+*.launch
+.settings/
 
 # vercel
 .vercel
@@ -34,3 +58,23 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# build artifacts
+*.tgz
+*.tar.gz
+
+# OS files
+Thumbs.db
+.vscode-test
+.cache/
+.parcel-cache/
+
+# misc
+.npm
+.node_repl_history
+*.seed
+*.pid.lock
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz

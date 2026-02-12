@@ -1,4 +1,8 @@
-# TaskTasker
+# TaskTasker - Tree-Based Task Management (v0)
+
+**v0.0.1** - Initial coming soon page + proof of concept
+
+This is the early version showcasing the core concept. 
 
 **TaskTasker** is a modern task + planning web app built for people who think in trees, not flat lists.
 
@@ -11,6 +15,62 @@ It supports **endlessly nested tasks**, where every item:
 TaskTasker is built as a **PWA (Progressive Web App)** and is installable on Android with push notifications.
 
 Website: https://tasktasker.com
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ 
+- pnpm
+- PostgreSQL (for later phases)
+
+### Installation
+
+```bash
+# Install dependencies for all packages
+pnpm install
+
+# Generate Prisma client (when DB is configured)
+pnpm db:generate
+```
+
+### Development
+
+```bash
+# Start the dev server (Next.js on http://localhost:3000)
+pnpm dev
+```
+
+Visit:
+- **Home (Coming Soon)**: http://localhost:3000
+- **Demo (Proof of Concept)**: http://localhost:3000/demo
+
+---
+
+## 📁 Project Structure
+
+```
+tasktasker/
+├── apps/
+│   └── web/              # Next.js application
+│       ├── app/          # App Router pages
+│       │   ├── page.tsx  # Coming soon landing
+│       │   └── demo/     # Interactive tree demo
+│       └── components/   # React components
+├── packages/
+│   └── db/               # Prisma ORM & schema
+│       └── prisma/       # Database schema
+└── package.json          # Root workspace config
+```
+
+## 🎯 v0 Features
+
+- ✅ Coming soon landing page with email signup
+- ✅ Interactive tree-based task demo
+- ✅ Modern UI with Tailwind CSS
+- ✅ Task status workflow visualization
+- ✅ Database schema ready (Prisma)
 
 ---
 
