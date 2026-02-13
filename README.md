@@ -46,6 +46,16 @@ Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
 
+### Launch notification backend configuration
+
+The "Notify Me" form now posts to `POST /api/launch-notify`.
+Set these environment variables on the web app:
+
+- `LAUNCH_NOTIFY_WEBHOOK_URL` (required): webhook endpoint that stores subscriptions
+- `LAUNCH_NOTIFY_WEBHOOK_SECRET` (optional): bearer token sent as `Authorization` header
+
+A Cloudflare Worker is a good fit for this webhook because it is inexpensive and can write to D1/KV/Queues.
+
 ---
 
 ## 📁 Project Structure
