@@ -42,7 +42,7 @@ jobs:
 
       - name: Run linting
         run: npm run lint --if-present
-
+        
       - name: Run unit tests
         run: npm run test --if-present
 
