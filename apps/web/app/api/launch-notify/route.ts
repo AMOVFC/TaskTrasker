@@ -26,7 +26,13 @@ async function forwardToWebhook(email: string) {
   })
 
   if (!response.ok) {
-    return { ok: false, reason: 'webhook_failed' as const }
+    const responseBody = await response.text().catch(() => '')
+    return {
+      ok: false,
+      reason: 'webhook_failed' as const,
+      status: response.status,
+      body: responseBody.slice(0, 250),
+    }
   }
 
   return { ok: true as const }
@@ -54,6 +60,23 @@ export async function POST(request: Request) {
     }
 
     if (!result.ok) {
+      if (result.reason === 'webhook_failed') {
+        console.error('Launch notify webhook returned non-2xx response', {
+          status: result.status,
+          body: result.body,
+        })
+
+        if (result.status === 401 || result.status === 403) {
+          return NextResponse.json(
+            {
+              error:
+                'Notification service rejected the request (auth error). Check LAUNCH_NOTIFY_WEBHOOK_SECRET.',
+            },
+            { status: 502 },
+          )
+        }
+      }
+
       return NextResponse.json({ error: 'Unable to save your email right now. Please try again.' }, { status: 502 })
     }
 
