@@ -54,7 +54,18 @@ Set these environment variables on the web app:
 - `LAUNCH_NOTIFY_WEBHOOK_URL` (required): webhook endpoint that stores subscriptions
 - `LAUNCH_NOTIFY_WEBHOOK_SECRET` (optional): bearer token sent as `Authorization` header
 
+> ⚠️ If your deployment returns `405 Method Not Allowed` for `POST /api/launch-notify`, check that the app is deployed with server/API routes enabled (not static export-only hosting).
+
 A Cloudflare Worker is a good fit for this webhook because it is inexpensive and can write to D1/KV/Queues.
+
+You can use the ready-to-deploy Worker template in:
+
+- `apps/web/cloudflare/launch-notify-worker.js`
+
+Set these Worker bindings/secrets:
+
+- `LAUNCH_NOTIFY_KV` (optional): KV namespace binding for persistence
+- `LAUNCH_NOTIFY_WEBHOOK_SECRET` (recommended) or `WEBHOOK_SECRET` (legacy): bearer auth secret
 
 ---
 
