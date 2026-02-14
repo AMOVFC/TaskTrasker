@@ -32,12 +32,20 @@ export default function Home() {
           <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
             TaskTasker
           </div>
-          <Link
-            href="/demo"
-            className="px-4 py-2 text-sm font-medium text-slate-200 hover:text-white transition-colors"
-          >
-            View Demo
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/demo"
+              className="px-4 py-2 text-sm font-medium text-slate-200 hover:text-white transition-colors"
+            >
+              View Demo
+            </Link>
+            <Link
+              href="/plan"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors"
+            >
+              Sign in with Google
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -125,6 +133,7 @@ export default function Home() {
                 ✓ Thanks! We&apos;ll let you know when we launch.
               </p>
             )}
+
           </div>
 
           {/* Demo Link */}

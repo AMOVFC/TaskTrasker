@@ -367,3 +367,35 @@ Planning should reflect reality.
 
 Tasks.
 All the way down.
+
+---
+
+## Supabase Auth + Sync Preparation (Google)
+
+A first-pass Supabase authentication scaffold is now prepared in `apps/web`.
+
+### Added foundation
+
+- Environment variable template (`apps/web/.env.example`)
+- Implementation guide for auth + syncing (`docs/supabase-auth-sync-plan.md`)
+- Setup checklist for Google OAuth + Supabase project configuration
+- RLS policy starter SQL for user-scoped task access
+
+### What you need to configure in Supabase
+
+1. Enable **Google** provider under **Authentication → Providers**.
+2. Add redirect URL: `http://localhost:3000/auth/callback`.
+3. Set Site URL to your app URL (`http://localhost:3000` for local dev).
+4. Add env vars from `.env.example` to your local environment.
+5. Create/enable RLS on task tables using `user_id = auth.uid()` policies.
+
+### How syncing/saving should work
+
+- Every write is user-scoped on the server (derive `user_id` from auth session).
+- RLS enforces per-user ownership at the database layer.
+- Client uses optimistic UI, then upserts to server.
+- Realtime subscriptions mirror remote changes across tabs/devices.
+- Conflict strategy for v1: last write wins via `updated_at`.
+
+
+For execution order, use: `docs/supabase-next-steps-checklist.md`.
