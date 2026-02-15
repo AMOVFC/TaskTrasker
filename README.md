@@ -399,3 +399,17 @@ A first-pass Supabase authentication scaffold is now prepared in `apps/web`.
 
 
 For execution order, use: `docs/supabase-next-steps-checklist.md`.
+
+### Critical Google Console OAuth values
+
+When configuring the OAuth Web Client in Google Cloud Console, include:
+
+1. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+2. Authorized JavaScript origin: `https://<project-ref>.supabase.co`
+3. Local app origin (dev): `http://localhost:3000`
+
+### Production readiness docs
+
+- `docs/production-readiness-checklist.md`
+- `docs/supabase-next-steps-checklist.md`
+- `docs/supabase-auth-sync-plan.md`

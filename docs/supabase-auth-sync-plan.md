@@ -5,13 +5,19 @@ This document explains how TaskTasker should use Supabase for authentication and
 ## 1) Setup checklist
 
 1. Create a Supabase project.
-2. In **Authentication → Providers → Google**, enable Google and enter Client ID + Secret.
-3. In **Authentication → URL Configuration**, add:
+2. In **Authentication > Providers > Google**, enable Google and enter Client ID + Secret.
+3. In Google Cloud Console, configure OAuth Web Client with:
+   - Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+   - Authorized JavaScript origins:
+     - `https://<project-ref>.supabase.co`
+     - `http://localhost:3000`
+4. In **Authentication > URL Configuration**, add:
    - Site URL: `http://localhost:3000` (dev)
    - Redirect URL: `http://localhost:3000/auth/callback`
-4. Add env vars from `apps/web/.env.example`.
-5. Ensure database tables include a `user_id` column tied to `auth.users.id`.
-6. Add RLS policies so users only read/write rows where `user_id = auth.uid()`.
+5. Add env vars from `apps/web/.env.example` (prefer `APP_URL` for server-side redirect construction).
+6. Apply migrations from `supabase/migrations` using `supabase db push --db-url "$SUPABASE_DB_URL" --include-all`.
+7. Ensure database tables include a `user_id` column tied to `auth.users.id`.
+8. Add RLS policies so users only read/write rows where `user_id = auth.uid()`.
 
 ## 2) Auth flow (Google OAuth)
 
@@ -29,10 +35,11 @@ For creating/updating tasks:
 - Use server actions or route handlers.
 - Resolve session user via Supabase (`auth.getUser()`).
 - Set `user_id` from authenticated user, never from client input.
+- Validate request payloads at runtime before DB writes.
 - Write to normalized tables (`tasks`, `task_dependencies`, etc).
 - Return canonical server state to client.
 
-This guarantees that task ownership cannot be spoofed client-side.
+This guarantees task ownership cannot be spoofed client-side.
 
 ## 4) Sync flow (multi-device)
 
@@ -53,9 +60,13 @@ Later enhancement:
 
 ## 5) RLS baseline examples
 
-```sql
--- tasks table should include: id, user_id, title, status, parent_id, due_at, sort_order, updated_at
+Canonical migration lives in:
 
+- `supabase/migrations/202602150001_create_tasks_table_and_rls.sql`
+
+Core policy model:
+
+```sql
 alter table public.tasks enable row level security;
 
 create policy "Users can select own tasks"
@@ -84,13 +95,12 @@ using (auth.uid() = user_id);
 
 - Keep service role keys server-only (never in browser).
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY`) is safe for public use with RLS enabled.
+- Prefer `APP_URL` for server-side redirect construction; keep `NEXT_PUBLIC_APP_URL` only as compatibility fallback.
 - Protect all data access with RLS, even if using server actions.
 
 ## 7) What is already prepared in this repo
 
 - Environment template for Supabase variables.
 - End-to-end implementation checklist for Google OAuth setup.
+- Migration source-of-truth in `supabase/migrations`.
 - Suggested auth, save, and sync architecture for user-scoped task data.
-- Starter RLS policy SQL examples for secure multi-tenant writes.
-
-Next step is implementing the Supabase client wiring (browser/server/middleware), then connecting a UI sign-in button and task CRUD APIs to this plan.

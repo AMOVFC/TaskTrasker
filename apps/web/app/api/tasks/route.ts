@@ -1,62 +1,121 @@
 import { NextResponse } from 'next/server'
 
+import {
+  createTaskForUser,
+  fetchTasksForUser,
+  parseRequestJson,
+  requireAuthenticatedUser,
+  validateCreateTaskPayload,
+} from '../../../lib/api/tasks-api.mjs'
 import { createClient } from '../../../lib/supabase/server'
+
+function errorResponse(status: number, error: { code: string; message: string; details?: Record<string, unknown> }) {
+  return NextResponse.json({ error }, { status })
+}
+
+function extractStatus(result: unknown, fallback: number) {
+  if (typeof result !== 'object' || result === null || !('status' in result)) {
+    return fallback
+  }
+
+  const status = (result as { status?: unknown }).status
+  return typeof status === 'number' ? status : fallback
+}
+
+function extractError(result: unknown, fallbackMessage: string) {
+  if (typeof result === 'object' && result !== null && 'error' in result) {
+    const error = (result as { error?: unknown }).error
+
+    if (typeof error === 'object' && error !== null) {
+      const code = 'code' in error ? (error as { code?: unknown }).code : null
+      const message = 'message' in error ? (error as { message?: unknown }).message : null
+      const details = 'details' in error ? (error as { details?: unknown }).details : undefined
+
+      if (typeof code === 'string' && typeof message === 'string') {
+        const normalized = { code, message } as { code: string; message: string; details?: Record<string, unknown> }
+        if (details && typeof details === 'object' && !Array.isArray(details)) {
+          normalized.details = details as Record<string, unknown>
+        }
+        return normalized
+      }
+    }
+  }
+
+  return { code: 'internal_error', message: fallbackMessage }
+}
+
+function getCause(result: unknown) {
+  if (typeof result !== 'object' || result === null || !('cause' in result)) {
+    return null
+  }
+
+  const cause = (result as { cause?: unknown }).cause
+  return typeof cause === 'string' ? cause : null
+}
 
 export async function GET() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const auth = await supabase.auth.getUser()
+  const authResult = requireAuthenticatedUser(auth)
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!authResult.ok) {
+    const cause = getCause(authResult)
+    if (cause) {
+      console.error('[api/tasks][GET] auth check failed:', cause)
+    }
+    return errorResponse(extractStatus(authResult, 401), extractError(authResult, 'Authentication is required.'))
   }
 
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('id,user_id,parent_id,title,status,due_at,sort_order,created_at,updated_at')
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true })
+  const result = await fetchTasksForUser(supabase, authResult.user.id)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!result.ok) {
+    const cause = getCause(result)
+    if (cause) {
+      console.error('[api/tasks][GET] fetch failed:', cause)
+    }
+    return errorResponse(extractStatus(result, 500), extractError(result, 'Unable to fetch tasks.'))
   }
 
-  return NextResponse.json({ tasks: data ?? [] })
+  return NextResponse.json({ tasks: result.tasks })
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const auth = await supabase.auth.getUser()
+  const authResult = requireAuthenticatedUser(auth)
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!authResult.ok) {
+    const cause = getCause(authResult)
+    if (cause) {
+      console.error('[api/tasks][POST] auth check failed:', cause)
+    }
+    return errorResponse(extractStatus(authResult, 401), extractError(authResult, 'Authentication is required.'))
   }
 
-  const body = (await request.json()) as { title?: string; parent_id?: string | null }
-  const title = body.title?.trim()
-
-  if (!title) {
-    return NextResponse.json({ error: 'Task title is required.' }, { status: 400 })
+  const parsedBody = await parseRequestJson(request)
+  if (!parsedBody.ok) {
+    return errorResponse(extractStatus(parsedBody, 400), extractError(parsedBody, 'Request body must be valid JSON.'))
   }
 
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert({
-      title,
-      user_id: user.id,
-      parent_id: body.parent_id ?? null,
-      status: 'todo',
-      updated_at: new Date().toISOString(),
-    })
-    .select('id,user_id,parent_id,title,status,due_at,sort_order,created_at,updated_at')
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  const payload = validateCreateTaskPayload(parsedBody.data)
+  if (!payload.ok) {
+    return errorResponse(extractStatus(payload, 400), extractError(payload, 'Invalid request payload.'))
   }
 
-  return NextResponse.json({ task: data }, { status: 201 })
+  const createResult = await createTaskForUser(
+    supabase,
+    authResult.user.id,
+    payload.value,
+    new Date().toISOString(),
+  )
+
+  if (!createResult.ok) {
+    const cause = getCause(createResult)
+    if (cause) {
+      console.error('[api/tasks][POST] create failed:', cause)
+    }
+    return errorResponse(extractStatus(createResult, 500), extractError(createResult, 'Unable to create task.'))
+  }
+
+  return NextResponse.json({ task: createResult.task }, { status: 201 })
 }

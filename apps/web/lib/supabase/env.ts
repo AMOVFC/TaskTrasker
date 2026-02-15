@@ -29,3 +29,27 @@ export function getSupabaseEnvOrThrow(): SupabaseEnv {
 
   return env
 }
+
+function normalizeAppUrl(value: string) {
+  return value.replace(/\/+$/, '')
+}
+
+export function getAppUrlOrNull() {
+  const appUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL
+
+  if (!appUrl) {
+    return null
+  }
+
+  return normalizeAppUrl(appUrl)
+}
+
+export function getAppUrlOrThrow() {
+  const appUrl = getAppUrlOrNull()
+
+  if (!appUrl) {
+    throw new Error('Missing APP_URL (preferred) or NEXT_PUBLIC_APP_URL')
+  }
+
+  return appUrl
+}
