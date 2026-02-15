@@ -24,7 +24,8 @@ cp apps/web/.env.example apps/web/.env.local
 Required values:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (recommended)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy fallback)
 - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
 
 ## Phase 3 — Database tables + security

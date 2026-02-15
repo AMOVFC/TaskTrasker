@@ -40,7 +40,7 @@ export default function Home() {
               View Demo
             </Link>
             <Link
-              href="/plan"
+              href="/login?next=/plan"
               className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors"
             >
               Sign in with Google

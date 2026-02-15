@@ -83,7 +83,7 @@ using (auth.uid() = user_id);
 ## 6) Security notes
 
 - Keep service role keys server-only (never in browser).
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is safe for public use with RLS enabled.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY`) is safe for public use with RLS enabled.
 - Protect all data access with RLS, even if using server actions.
 
 ## 7) What is already prepared in this repo

@@ -36,6 +36,7 @@ export default async function PlanPage() {
             </form>
           ) : (
             <form action={signInWithGoogle}>
+              <input type="hidden" name="next" value="/plan" />
               <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
                 Continue with Google
               </button>
@@ -57,6 +58,9 @@ export default async function PlanPage() {
             <p className="mt-2 text-sm text-slate-300">
               Use Continue with Google to start the OAuth flow and load your user-scoped tasks.
             </p>
+            <Link href="/login?next=/plan" className="mt-4 inline-flex text-sm text-cyan-300 hover:text-cyan-200">
+              Open login page
+            </Link>
           </section>
         )}
 
