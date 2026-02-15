@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 
 import { normalizeNextPath } from '../../lib/auth/next-path'
 import { createClient } from '../../lib/supabase/server'
+import BrandLogo from '../../components/brand-logo'
 import { signInWithGoogle } from '../plan/actions'
 
 type LoginPageProps = {
@@ -26,7 +27,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
       <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
-        <h1 className="text-2xl font-semibold text-slate-100">Sign in to TaskTasker</h1>
+        <BrandLogo href="/" className="mb-6" />
+        <h1 className="text-2xl font-semibold text-slate-100">Sign in to your workspace</h1>
         <p className="mt-2 text-sm text-slate-300">Continue with Google to access your task workspace.</p>
 
         <form action={signInWithGoogle} className="mt-6">

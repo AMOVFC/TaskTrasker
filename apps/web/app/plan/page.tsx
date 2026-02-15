@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import BrandLogo from '../../components/brand-logo'
 import PlanWorkspace from '../../components/plan-workspace'
 import { createClient } from '../../lib/supabase/server'
 import { signInWithGoogle, signOut } from './actions'
@@ -24,9 +25,7 @@ export default async function PlanPage() {
     <main className="min-h-screen bg-slate-950 text-white">
       <nav className="sticky top-0 z-30 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-semibold text-slate-100">
-            TaskTasker
-          </Link>
+          <BrandLogo compact />
 
           {user ? (
             <form action={signOut}>
