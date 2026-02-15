@@ -1,40 +1,70 @@
 import Link from 'next/link'
 
-import TaskTreePlayground from '../../components/task-tree-playground'
+import PlanWorkspace from '../../components/plan-workspace'
+import { createClient } from '../../lib/supabase/server'
+import { signInWithGoogle, signOut } from './actions'
 
-export default function PlanPage() {
+export default async function PlanPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const tasks = user
+    ? (
+        await supabase
+          .from('tasks')
+          .select('id,user_id,parent_id,title,status,due_at,sort_order,created_at,updated_at')
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true })
+      ).data ?? []
+    : []
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <nav className="sticky top-0 z-30 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/" className="text-lg font-semibold text-slate-100">
             TaskTasker
           </Link>
-          <Link
-            href="/plan"
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors"
-          >
-            Sign in with Google
-          </Link>
+
+          {user ? (
+            <form action={signOut}>
+              <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+                Sign out
+              </button>
+            </form>
+          ) : (
+            <form action={signInWithGoogle}>
+              <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+                Continue with Google
+              </button>
+            </form>
+          )}
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-6">
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          Signed-in testing view: this mirrors the public demo interactions, but in production this page will persist data using Google SSO + Supabase.
+      <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
+        <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-100">
+          This is now wired for Supabase auth/session, task CRUD, optimistic updates, and realtime sync events.
         </div>
 
-        <TaskTreePlayground
-          title="Signed-in Task Workspace (Preview)"
-          subtitle="Rough app behavior preview. Current persistence is local-only until Supabase auth/session writes are connected."
-          persistenceKey="tasktasker-signed-preview"
-        />
+        {user ? (
+          <PlanWorkspace userId={user.id} initialTasks={tasks} />
+        ) : (
+          <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+            <h2 className="text-xl font-semibold">Sign in required</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Use Continue with Google to start the OAuth flow and load your user-scoped tasks.
+            </p>
+          </section>
+        )}
 
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-cyan-300 hover:text-cyan-200 text-sm">
+          <Link href="/" className="text-sm text-cyan-300 hover:text-cyan-200">
             ← Back to home
           </Link>
-          <Link href="/demo" className="text-slate-300 hover:text-white text-sm">
+          <Link href="/demo" className="text-sm text-slate-300 hover:text-white">
             Open public demo mode
           </Link>
         </div>
