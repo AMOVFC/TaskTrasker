@@ -60,6 +60,23 @@ If unset, monitoring scripts are not loaded.
 
 ---
 
+
+## Deployment Ownership (GitHub Actions as source of truth)
+
+To keep deployment control in GitHub Actions (and not Cloudflare's native Git integration):
+
+1. In Cloudflare Pages → your project → **Settings → Builds & deployments → Production branch**, disable automatic Git production deployments (or disconnect the Git integration entirely).
+2. Keep `.github/workflows/ci-cd.yml` as the only deployment trigger for `main`.
+3. Configure these GitHub repository secrets so the Action can deploy directly via the Cloudflare API:
+   - `CLOUDFLARE_API_TOKEN` (with Pages edit permissions)
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `CLOUDFLARE_PAGES_PROJECT_NAME`
+4. Protect `main` with required status checks so only successful workflow runs can deploy.
+
+This ensures every production deploy is traceable to a GitHub Actions run and commit SHA.
+
+---
+
 ## 📁 Project Structure
 
 ```
