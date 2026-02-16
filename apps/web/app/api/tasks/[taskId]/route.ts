@@ -10,6 +10,8 @@ import {
 } from '../../../../lib/api/tasks-api.mjs'
 import { createClient } from '../../../../lib/supabase/server'
 
+export const runtime = 'edge'
+
 function errorResponse(status: number, error: { code: string; message: string; details?: Record<string, unknown> }) {
   return NextResponse.json({ error }, { status })
 }

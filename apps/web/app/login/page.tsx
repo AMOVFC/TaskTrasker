@@ -6,6 +6,8 @@ import { createClient } from '../../lib/supabase/server'
 import BrandLogo from '../../components/brand-logo'
 import { signInWithGoogle } from '../plan/actions'
 
+export const runtime = 'edge'
+
 type LoginPageProps = {
   searchParams?: Record<string, string | string[] | undefined>
 }
