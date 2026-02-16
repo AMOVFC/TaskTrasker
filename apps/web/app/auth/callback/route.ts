@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server'
 
-import { normalizeNextPath } from '../../../lib/auth/next-path'
+import { buildLoginErrorRedirectUrl, normalizeNextPath } from '../../../lib/auth/login-flow.mjs'
 import { createClient } from '../../../lib/supabase/server'
 
 function redirectWithAuthError(origin: string, next: string, reason: string) {
-  const url = new URL('/login', origin)
-  url.searchParams.set('next', next)
-  url.searchParams.set('error', reason)
-  return NextResponse.redirect(url)
+  return NextResponse.redirect(buildLoginErrorRedirectUrl(origin, next, reason))
 }
 
 export async function GET(request: Request) {

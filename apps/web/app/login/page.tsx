@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { normalizeNextPath } from '../../lib/auth/next-path'
+import { getAuthErrorMessage, normalizeNextPath } from '../../lib/auth/login-flow.mjs'
 import { createClient } from '../../lib/supabase/server'
 import BrandLogo from '../../components/brand-logo'
 import { signInWithGoogle } from '../plan/actions'
@@ -12,17 +12,6 @@ type LoginPageProps = {
 
 function normalizeSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
-}
-
-function getAuthErrorMessage(errorCode: string | null) {
-  switch (errorCode) {
-    case 'missing_code':
-      return 'Google sign-in did not return an authorization code. Please try again.'
-    case 'oauth_exchange_failed':
-      return 'Could not complete Google sign-in. Please retry the login flow.'
-    default:
-      return null
-  }
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
