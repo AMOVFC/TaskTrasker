@@ -46,6 +46,18 @@ Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
 
+### Optional analytics & monitoring placeholders
+
+Set these in `apps/web/.env.local` (or deployment secrets) when ready:
+
+```bash
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+NEXT_PUBLIC_GTM_CONTAINER_ID=GTM-XXXXXXX
+NEXT_PUBLIC_CLARITY_PROJECT_ID=YOUR_CLARITY_PROJECT_ID
+```
+
+If unset, monitoring scripts are not loaded.
+
 ---
 
 ## 📁 Project Structure
