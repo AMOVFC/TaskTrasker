@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { MonitoringScripts } from '@/components/monitoring-scripts'
+import { MonitoringScripts } from '../components/monitoring-scripts'
 
 export const metadata: Metadata = {
   title: 'TaskTasker - Tree-based Task Planning',
