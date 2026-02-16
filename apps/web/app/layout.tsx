@@ -4,6 +4,11 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'TaskTasker - Tree-based Task Planning',
   description: 'TaskTasker is a modern task + planning web app built for people who think in trees, not flat lists.',
+  icons: {
+    icon: '/tasktasker-logo-icon.svg',
+    shortcut: '/tasktasker-logo-icon.svg',
+    apple: '/tasktasker-logo-icon.svg',
+  },
 }
 
 export default function RootLayout({
