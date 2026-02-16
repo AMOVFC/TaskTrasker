@@ -72,8 +72,9 @@ To keep deployment control in GitHub Actions (and not Cloudflare's native Git in
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_PAGES_PROJECT_NAME`
 4. Protect `main` with required status checks so only successful workflow runs can deploy.
+5. In Cloudflare Pages → **Settings → Functions → Compatibility flags**, enable `nodejs_compat` for both **Production** and **Preview** environments.
 
-This ensures every production deploy is traceable to a GitHub Actions run and commit SHA.
+This ensures every production deploy is traceable to a GitHub Actions run and commit SHA, and prevents the `Node.JS Compatibility Error` page when Next.js server code is executed.
 
 ---
 
