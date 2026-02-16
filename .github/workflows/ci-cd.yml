@@ -161,8 +161,8 @@ jobs:
         run: npm ci --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
-      - name: Build application for Pages
-        run: npm run build
+      - name: Build Next.js for Cloudflare Pages
+        run: npx opennextjs-cloudflare@latest build
         working-directory: apps/web
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -180,4 +180,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
+          command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
