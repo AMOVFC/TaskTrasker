@@ -163,7 +163,7 @@ jobs:
         working-directory: apps/web
 
       - name: Build Next.js for Cloudflare Pages preview
-        run: npx opennextjs-cloudflare@latest build
+        run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
         working-directory: apps/web
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -213,7 +213,7 @@ jobs:
         working-directory: apps/web
 
       - name: Build Next.js for Cloudflare Pages
-        run: npx opennextjs-cloudflare@latest build
+        run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
         working-directory: apps/web
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
