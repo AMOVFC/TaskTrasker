@@ -187,6 +187,12 @@ jobs:
           ls -la .open-next
         working-directory: apps/web
 
+      - name: Show OpenNext output
+        run: |
+          ls -la .open-next
+          ls -la .open-next/_worker.js || true
+        working-directory: apps/web
+
       - name: Derive preview branch alias
         id: preview_branch
         run: |
