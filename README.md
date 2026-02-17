@@ -75,6 +75,7 @@ To keep deployment control in GitHub Actions (and not Cloudflare's native Git in
 5. Protect `main` with required status checks so only successful workflow runs can deploy.
 6. In Cloudflare Pages → **Settings → Functions → Compatibility flags**, enable `nodejs_compat` for both **Production** and **Preview** environments.
 7. Keep the OpenNext build invocation in CI as `npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build` (explicit package + executable) to avoid `npm could not determine executable to run` failures.
+8. After changing dependency versions in `apps/web/package.json`, regenerate and commit `apps/web/package-lock.json` (for example with `npm install`) so CI dependency installation stays in sync.
 
 This ensures every production deploy is traceable to a GitHub Actions run and commit SHA, enables per-branch preview deployments from GitHub Actions (branch names with `/` are normalized to `-` for the Cloudflare preview alias), and prevents the `Node.JS Compatibility Error` page when Next.js server code is executed.
 
