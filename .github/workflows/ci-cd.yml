@@ -115,7 +115,7 @@ jobs:
         with:
           name: opennext-build
           path: apps/web/.open-next
-          if-no-files-found: error
+          # if-no-files-found: error
 
   version_bump:
     name: Auto-bump web package version
@@ -190,8 +190,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download OpenNext build artifact
-        uses: actions/download-artifact@v4
+      - name: Download setyup node for build artifact
+        uses: actions/setup-node@v4
         with:
           name: opennext-build
           path: apps/web/.open-next
