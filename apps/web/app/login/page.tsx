@@ -9,7 +9,7 @@ import { signInWithGoogle } from '../plan/actions'
 export const runtime = 'edge'
 
 type LoginPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
 function normalizeSearchParam(value: string | string[] | undefined) {
@@ -17,8 +17,9 @@ function normalizeSearchParam(value: string | string[] | undefined) {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const nextParam = normalizeSearchParam(searchParams?.next)
-  const authErrorCode = normalizeSearchParam(searchParams?.error) ?? null
+  const resolvedSearchParams = await searchParams
+  const nextParam = normalizeSearchParam(resolvedSearchParams?.next)
+  const authErrorCode = normalizeSearchParam(resolvedSearchParams?.error) ?? null
   const authErrorMessage = getAuthErrorMessage(authErrorCode)
   const next = normalizeNextPath(nextParam)
 
