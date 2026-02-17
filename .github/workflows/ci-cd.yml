@@ -187,23 +187,6 @@ jobs:
           ls -la .open-next
         working-directory: apps/web
 
-      - name: Extract branch name
-        id: branch
-        run: echo "BRANCH_NAME=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-
-      - name: Normalize branch name for Worker
-        id: normalize
-        run: |
-          SAFE_NAME=$(echo "$BRANCH_NAME" \
-            | tr '[:upper:]' '[:lower:]' \
-            | sed 's#[^a-z0-9]#-#g' \
-            | sed 's#--*#-#g' \
-            | sed 's#^-##' \
-            | sed 's#-$##')
-
-          echo "WORKER_NAME=tasktasker-$SAFE_NAME" >> $GITHUB_ENV
-          echo "Using worker name: tasktasker-$SAFE_NAME"
-
       - name: Deploy preview Worker (OpenNext)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -211,7 +194,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
-          command: deploy --name $WORKER_NAME
+          command: deploy --name tasktrasker
 
 
       # - name: Deploy preview to Cloudflare Pages (OpenNext output)
