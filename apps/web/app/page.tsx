@@ -78,7 +78,7 @@ export default function Home() {
             </h1>
             
             <p className="text-xl text-slate-300 leading-relaxed">
-              TaskTasker is a modern task + planning web app built around structured thinking. No more flat lists. Just infinite nesting, workflow states, and dependencies.
+              tasktrasker is a modern task + planning web app built around structured thinking. No more flat lists. Just infinite nesting, workflow states, and dependencies.
             </p>
           </div>
 
@@ -101,7 +101,7 @@ export default function Home() {
           {/* CTA Section */}
           <div className="space-y-6 pt-8">
             <p className="text-slate-300">
-              Get notified when TaskTasker v1 launches
+              Get notified when tasktrasker v1 launches
             </p>
 
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -176,7 +176,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-700/50 bg-slate-900/50">
         <div className="max-w-6xl mx-auto px-6 py-8 text-center text-slate-400 text-sm">
-          <p>TaskTasker v0.0.1 • Early Proof of Concept • v1 First Full Release Coming Soon</p>
+          <p>tasktrasker v0.1.1 • Early Proof of Concept • v1 First Full Release Coming Soon</p>
         </div>
       </footer>
     </div>

@@ -23,7 +23,7 @@ export default function RootLayout({
         <MonitoringScripts />
         {/* Work in Progress Banner */}
         <div className="sticky top-0 z-50 bg-amber-500/90 text-slate-900 px-6 py-3 text-center font-semibold border-b border-amber-600">
-          ⚠️ Work in Progress (v0.0.1) - This is a proof of concept. Full v1 release coming soon.
+          ⚠️ Work in Progress (v0.1.1) - This is a proof of concept. Full v1 release coming soon.
         </div>
         {children}
       </body>
