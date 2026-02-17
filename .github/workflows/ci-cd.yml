@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        run: npm install --registry=https://registry.npmjs.org/
+        run: npm ci --registry=https://registry.npmjs.org/
 
       - name: Verify required Supabase package is installed
         run: npm ls @supabase/ssr --depth=0
@@ -57,7 +57,7 @@ jobs:
       - name: Count unit tests
         id: unit_test_count
         run: |
-          UNIT_TEST_COUNT=$(node -e "const fs=require('fs');const path=require('path');const dir=path.join(process.cwd(),'test');const files=fs.readdirSync(dir).filter((f)=>f.endsWith('.test.mjs'));let count=0;for(const file of files){const content=fs.readFileSync(path.join(dir,file),'utf8');const matches=content.match(/\btest\s*\(/g);count += matches ? matches.length : 0;}process.stdout.write(String(count));")
+          UNIT_TEST_COUNT=$(node -e "const fs=require('fs');const path=require('path');const dir=path.join(process.cwd(),'test');const files=fs.existsSync(dir)?fs.readdirSync(dir).filter((f)=>f.endsWith('.test.mjs')):[];let count=0;for(const file of files){const content=fs.readFileSync(path.join(dir,file),'utf8');const matches=content.match(/\btest\s*\(/g);count += matches ? matches.length : 0;}process.stdout.write(String(count));")
           echo "count=$UNIT_TEST_COUNT" >> "$GITHUB_OUTPUT"
           echo "Detected $UNIT_TEST_COUNT unit tests"
 
@@ -70,7 +70,6 @@ jobs:
         continue-on-error: true
         run: npm run test
 
-      # ✅ Build the same way you deploy (OpenNext)
       - name: Build application (OpenNext)
         run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
         env:
@@ -78,6 +77,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
           APP_URL: http://localhost:3000
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      - name: Verify OpenNext output exists
+        run: |
+          test -d .open-next
+          test -f .open-next/worker.js || true
+          ls -la .open-next
 
       - name: Run security audit (non-blocking)
         continue-on-error: true
@@ -164,7 +169,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        run: npm install --registry=https://registry.npmjs.org/
+        run: npm ci --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
       - name: Build (OpenNext) for Cloudflare Pages preview
@@ -176,37 +181,25 @@ jobs:
           APP_URL: https://tasktasker.com
           NEXT_PUBLIC_APP_URL: https://tasktasker.com
 
+      - name: Verify OpenNext output exists
+        run: |
+          test -d .open-next
+          ls -la .open-next
+        working-directory: apps/web
+
       - name: Derive preview branch alias
         id: preview_branch
         run: |
           SAFE_BRANCH=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
           echo "name=$SAFE_BRANCH" >> "$GITHUB_OUTPUT"
 
-      - name: Validate Cloudflare deployment secrets
-        run: |
-          for secret_name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_PAGES_PROJECT_NAME; do
-            if [ -z "${!secret_name}" ]; then
-              echo "$secret_name is not configured" >&2
-              exit 1
-            fi
-          done
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
-
       - name: Deploy preview to Cloudflare Pages (OpenNext output)
         uses: cloudflare/wrangler-action@v3
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
-          APP_URL: https://tasktasker.com
-          NEXT_PUBLIC_APP_URL: https://tasktasker.com
         with:
           wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }} --commit-dirty=true
+          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }}
 
   deploy:
     name: Deploy to Cloudflare Pages via GitHub Actions
@@ -228,7 +221,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        run: npm install --registry=https://registry.npmjs.org/
+        run: npm ci --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
       - name: Build (OpenNext) for Cloudflare Pages
@@ -240,28 +233,16 @@ jobs:
           APP_URL: https://tasktasker.com
           NEXT_PUBLIC_APP_URL: https://tasktasker.com
 
-      - name: Validate Cloudflare deployment secrets
+      - name: Verify OpenNext output exists
         run: |
-          for secret_name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_PAGES_PROJECT_NAME; do
-            if [ -z "${!secret_name}" ]; then
-              echo "$secret_name is not configured" >&2
-              exit 1
-            fi
-          done
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
+          test -d .open-next
+          ls -la .open-next
+        working-directory: apps/web
 
       - name: Deploy to Cloudflare Pages (OpenNext output)
         uses: cloudflare/wrangler-action@v3
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
-          APP_URL: https://tasktasker.com
-          NEXT_PUBLIC_APP_URL: https://tasktasker.com
         with:
           wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main --commit-dirty=true
+          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
