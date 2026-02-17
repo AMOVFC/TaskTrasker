@@ -70,8 +70,14 @@ jobs:
         continue-on-error: true
         run: npm run test
 
-      - name: Build application
-        run: npm run build
+      # ✅ Build the same way you deploy (OpenNext)
+      - name: Build application (OpenNext)
+        run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+          APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
 
       - name: Run security audit (non-blocking)
         continue-on-error: true
@@ -138,7 +144,6 @@ jobs:
           fi
           supabase db push --db-url "$SUPABASE_DB_URL" --include-all
 
-
   deploy_preview:
     name: Deploy Cloudflare Pages preview (branch)
     runs-on: ubuntu-latest
@@ -162,7 +167,7 @@ jobs:
         run: npm install --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
-      - name: Build Next.js for Cloudflare Pages preview
+      - name: Build (OpenNext) for Cloudflare Pages preview
         run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
         working-directory: apps/web
         env:
@@ -190,7 +195,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
 
-      - name: Deploy preview to Cloudflare Pages
+      - name: Deploy preview to Cloudflare Pages (OpenNext output)
         uses: cloudflare/wrangler-action@v3
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -201,7 +206,7 @@ jobs:
           wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ${{ github.workspace }}/apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }} --commit-dirty=true
+          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }} --commit-dirty=true
 
   deploy:
     name: Deploy to Cloudflare Pages via GitHub Actions
@@ -226,7 +231,7 @@ jobs:
         run: npm install --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
-      - name: Build Next.js for Cloudflare Pages
+      - name: Build (OpenNext) for Cloudflare Pages
         run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
         working-directory: apps/web
         env:
@@ -248,7 +253,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages (OpenNext output)
         uses: cloudflare/wrangler-action@v3
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -259,4 +264,4 @@ jobs:
           wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ${{ github.workspace }}/apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main --commit-dirty=true
+          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main --commit-dirty=true

@@ -2,11 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tasktasker-web",
 
-  // OpenNext uses the Workers Node.js compatibility layer
   "compatibility_date": "2026-02-16",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Tell Cloudflare Pages where your build output is
-  // (this should match your Pages "Build output directory")
+  // Cloudflare Pages will upload from this folder
   "pages_build_output_dir": ".open-next"
 }
