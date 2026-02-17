@@ -201,7 +201,8 @@ jobs:
           wranglerVersion: '4'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }} --compatibility-date=2024-09-23 --compatibility-flags=nodejs_compat
+          command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }}
+
 
   deploy:
     name: Deploy to Cloudflare Pages via GitHub Actions
@@ -259,4 +260,4 @@ jobs:
           wranglerVersion: '4'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main --compatibility-date=2024-09-23 --compatibility-flags=nodejs_compat
+          command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
