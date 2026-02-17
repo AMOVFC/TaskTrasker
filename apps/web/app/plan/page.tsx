@@ -5,7 +5,7 @@ import PlanWorkspace from '../../components/plan-workspace'
 import { createClient } from '../../lib/supabase/server'
 import { signInWithGoogle, signOut } from './actions'
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
 
 export default async function PlanPage() {
   const supabase = await createClient()
