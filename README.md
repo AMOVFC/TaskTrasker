@@ -22,24 +22,24 @@ Website: https://tasktasker.com
 
 ### Prerequisites
 - Node.js 18+ 
-- pnpm
+- npm
 - PostgreSQL (for later phases)
 
 ### Installation
 
 ```bash
 # Install dependencies for all packages
-pnpm install
+npm install
 
 # Generate Prisma client (when DB is configured)
-pnpm db:generate
+npm run db:generate
 ```
 
 ### Development
 
 ```bash
 # Start the dev server (Next.js on http://localhost:3000)
-pnpm dev
+npm run dev
 ```
 
 Visit:
@@ -364,21 +364,21 @@ Hosting:
 
 Install dependencies:
 
-pnpm install
+npm install
 
 yaml
 Copy code
 
 Run dev server:
 
-pnpm dev
+npm run dev
 
 yaml
 Copy code
 
 Run database migrations:
 
-pnpm prisma migrate dev
+npx prisma migrate dev
 
 yaml
 Copy code

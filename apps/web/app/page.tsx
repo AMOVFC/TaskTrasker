@@ -10,20 +10,39 @@ export default function Home() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    setSubmitted(true)
-    setEmail('')
-    setLoading(false)
-    
-    // Reset after 3 seconds
-    setTimeout(() => setSubmitted(false), 3000)
+    setError('')
+
+    try {
+      const response = await fetch('/api/launch-notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        setError(payload?.error ?? 'Something went wrong. Please try again.')
+        return
+      }
+
+      setSubmitted(true)
+      setEmail('')
+
+      // Reset after 3 seconds
+      setTimeout(() => setSubmitted(false), 3000)
+    } catch {
+      setError('Unable to connect right now. Please try again in a moment.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
