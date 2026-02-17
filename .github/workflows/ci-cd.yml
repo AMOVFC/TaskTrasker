@@ -94,7 +94,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --registry=https://registry.npmjs.org/
 
       - name: Build application (OpenNext)
         run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
@@ -108,17 +108,15 @@ jobs:
         run: |
           test -d .open-next
           test -f .open-next/worker.js
-          test -f .open-next
           ls -la .open-next
 
       - name: Upload OpenNext build artifact
         uses: actions/upload-artifact@v4
         with:
           name: opennext-build
-          path: /.open-next/
+          path: apps/web/.open-next
           if-no-files-found: error
-       
-          
+          include-hidden-files: true
 
   version_bump:
     name: Auto-bump web package version
@@ -193,7 +191,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download setyup node for build artifact
+      - name: Download OpenNext build artifact
         uses: actions/download-artifact@v4
         with:
           name: opennext-build
@@ -227,8 +225,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download setyup node for build artifact
-        uses: actions/setup-node@v4
+      - name: Download OpenNext build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: opennext-build
+          path: apps/web/.open-next
 
       - name: Verify OpenNext output exists
         run: |
