@@ -198,7 +198,7 @@ jobs:
           APP_URL: https://tasktasker.com
           NEXT_PUBLIC_APP_URL: https://tasktasker.com
         with:
-          wranglerVersion: '4'
+          wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
@@ -258,7 +258,7 @@ jobs:
           APP_URL: https://tasktasker.com
           NEXT_PUBLIC_APP_URL: https://tasktasker.com
         with:
-          wranglerVersion: '4'
+          wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
