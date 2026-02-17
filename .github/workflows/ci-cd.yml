@@ -195,7 +195,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: opennext-build
-          path: apps/web
+          path: apps/web/.open-next
 
       - name: Verify OpenNext output exists
         run: |
@@ -229,7 +229,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: opennext-build
-          path: apps/web
+          path: apps/web/.open-next
 
       - name: Verify OpenNext output exists
         run: |
