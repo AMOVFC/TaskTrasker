@@ -108,14 +108,17 @@ jobs:
         run: |
           test -d .open-next
           test -f .open-next/worker.js
+          test -f .open-next
           ls -la .open-next
 
       - name: Upload OpenNext build artifact
         uses: actions/upload-artifact@v4
         with:
           name: opennext-build
-          path: .open-next
+          path: /.open-next/**
           if-no-files-found: error
+       
+          
 
   version_bump:
     name: Auto-bump web package version
