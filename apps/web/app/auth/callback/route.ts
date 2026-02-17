@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { buildLoginErrorRedirectUrl, normalizeNextPath } from '../../../lib/auth/login-flow.mjs'
 import { createClient } from '../../../lib/supabase/server'
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
 
 function redirectWithAuthError(origin: string, next: string, reason: string) {
   return NextResponse.redirect(buildLoginErrorRedirectUrl(origin, next, reason))
