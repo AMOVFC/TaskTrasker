@@ -42,8 +42,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install dependencies (clean)
-        run: npm ci --registry=https://registry.npmjs.org/
+      - name: Install dependencies
+        run: npm install --registry=https://registry.npmjs.org/
 
       - name: Verify required Supabase package is installed
         run: npm ls @supabase/ssr --depth=0
@@ -158,8 +158,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install dependencies (clean)
-        run: npm ci --registry=https://registry.npmjs.org/
+      - name: Install dependencies
+        run: npm install --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
       - name: Build Next.js for Cloudflare Pages preview
@@ -208,8 +208,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install dependencies (clean)
-        run: npm ci --registry=https://registry.npmjs.org/
+      - name: Install dependencies
+        run: npm install --registry=https://registry.npmjs.org/
         working-directory: apps/web
 
       - name: Build Next.js for Cloudflare Pages
