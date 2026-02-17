@@ -194,7 +194,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
-          command: deploy --name tasktrasker
+          command: deploy --name tasktrasker-dev
 
 
       # - name: Deploy preview to Cloudflare Pages (OpenNext output)
@@ -250,7 +250,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
-          command: deploy --name tasktasker-web
+          command: deploy --name tasktasker
 
       # - name: Deploy to Cloudflare Pages (OpenNext output)
       #   uses: cloudflare/wrangler-action@v3
