@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Mail, Check, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
+import BrandLogo from '../components/brand-logo'
+
 export default function Home() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -48,15 +50,21 @@ export default function Home() {
       {/* Navigation */}
       <nav className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-            TaskTasker
+          <BrandLogo compact />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/demo"
+              className="px-4 py-2 text-sm font-medium text-slate-200 hover:text-white transition-colors"
+            >
+              View Demo
+            </Link>
+            <Link
+              href="/login?next=/plan"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors"
+            >
+              Sign in with Google
+            </Link>
           </div>
-          <Link
-            href="/demo"
-            className="px-4 py-2 text-sm font-medium text-slate-200 hover:text-white transition-colors"
-          >
-            View Demo
-          </Link>
         </div>
       </nav>
 
@@ -142,12 +150,6 @@ export default function Home() {
             {submitted && (
               <p className="text-green-400 text-sm animate-fade-in">
                 ✓ Thanks! We&apos;ll let you know when we launch.
-              </p>
-            )}
-
-            {error && (
-              <p className="text-rose-400 text-sm animate-fade-in">
-                {error}
               </p>
             )}
 

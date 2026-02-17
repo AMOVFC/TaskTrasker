@@ -46,26 +46,39 @@ Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
 
-### Launch notification backend configuration
+### Optional analytics & monitoring placeholders
 
-The "Notify Me" form now posts to `POST /api/launch-notify`.
-Set these environment variables on the web app:
+Set these in `apps/web/.env.local` (or deployment secrets) when ready:
 
-- `LAUNCH_NOTIFY_WEBHOOK_URL` (required): webhook endpoint that stores subscriptions
-- `LAUNCH_NOTIFY_WEBHOOK_SECRET` (optional): bearer token sent as `Authorization` header
+```bash
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+NEXT_PUBLIC_GTM_CONTAINER_ID=GTM-XXXXXXX
+NEXT_PUBLIC_CLARITY_PROJECT_ID=YOUR_CLARITY_PROJECT_ID
+```
 
-> ⚠️ If your deployment returns `405 Method Not Allowed` for `POST /api/launch-notify`, check that the app is deployed with server/API routes enabled (not static export-only hosting).
+If unset, monitoring scripts are not loaded.
 
-A Cloudflare Worker is a good fit for this webhook because it is inexpensive and can write to D1/KV/Queues.
+---
 
-You can use the ready-to-deploy Worker template in:
 
-- `apps/web/cloudflare/launch-notify-worker.js`
+## Deployment Ownership (GitHub Actions as source of truth)
 
-Set these Worker bindings/secrets:
+To keep deployment control in GitHub Actions (and not Cloudflare's native Git integration):
 
-- `LAUNCH_NOTIFY_KV` (optional): KV namespace binding for persistence
-- `LAUNCH_NOTIFY_WEBHOOK_SECRET` (recommended) or `WEBHOOK_SECRET` (legacy): bearer auth secret
+1. In Cloudflare Pages → your project → **Settings → Builds & deployments → Production branch**, disable automatic Git production deployments (or disconnect the Git integration entirely).
+2. Keep `.github/workflows/ci-cd.yml` as the only deployment trigger for `main`.
+3. Configure these GitHub repository secrets so the Action can deploy directly via the Cloudflare API:
+   - `CLOUDFLARE_API_TOKEN` (with Pages edit permissions)
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `CLOUDFLARE_PAGES_PROJECT_NAME`
+4. Keep `main` as the production branch and allow preview deployments for non-main branches.
+5. Protect `main` with required status checks so only successful workflow runs can deploy.
+6. In Cloudflare Pages → **Settings → Functions → Compatibility flags**, enable `nodejs_compat` for both **Production** and **Preview** environments.
+7. Keep the OpenNext build invocation in CI as `npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build` (explicit package + executable) to avoid `npm could not determine executable to run` failures.
+8. After changing dependency versions in `apps/web/package.json`, regenerate and commit `apps/web/package-lock.json` (for example with `npm install`) so CI dependency installation stays in sync.
+9. In Cloudflare Pages → **Settings → Builds & deployments**, set the build command to `npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build` (not `npx @cloudflare/next-on-pages@1`) so previews no longer use the deprecated adapter.
+
+This ensures every production deploy is traceable to a GitHub Actions run and commit SHA, enables per-branch preview deployments from GitHub Actions (branch names with `/` are normalized to `-` for the Cloudflare preview alias), and prevents the `Node.JS Compatibility Error` page when Next.js server code is executed.
 
 ---
 
@@ -388,3 +401,49 @@ Planning should reflect reality.
 
 Tasks.
 All the way down.
+
+---
+
+## Supabase Auth + Sync Preparation (Google)
+
+A first-pass Supabase authentication scaffold is now prepared in `apps/web`.
+
+### Added foundation
+
+- Environment variable template (`apps/web/.env.example`)
+- Implementation guide for auth + syncing (`docs/supabase-auth-sync-plan.md`)
+- Setup checklist for Google OAuth + Supabase project configuration
+- RLS policy starter SQL for user-scoped task access
+
+### What you need to configure in Supabase
+
+1. Enable **Google** provider under **Authentication → Providers**.
+2. Add redirect URL: `http://localhost:3000/auth/callback`.
+3. Set Site URL to your app URL (`http://localhost:3000` for local dev).
+4. Add env vars from `.env.example` to your local environment.
+5. Create/enable RLS on task tables using `user_id = auth.uid()` policies.
+
+### How syncing/saving should work
+
+- Every write is user-scoped on the server (derive `user_id` from auth session).
+- RLS enforces per-user ownership at the database layer.
+- Client uses optimistic UI, then upserts to server.
+- Realtime subscriptions mirror remote changes across tabs/devices.
+- Conflict strategy for v1: last write wins via `updated_at`.
+
+
+For execution order, use: `docs/supabase-next-steps-checklist.md`.
+
+### Critical Google Console OAuth values
+
+When configuring the OAuth Web Client in Google Cloud Console, include:
+
+1. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+2. Authorized JavaScript origin: `https://<project-ref>.supabase.co`
+3. Local app origin (dev): `http://localhost:3000`
+
+### Production readiness docs
+
+- `docs/production-readiness-checklist.md`
+- `docs/supabase-next-steps-checklist.md`
+- `docs/supabase-auth-sync-plan.md`
