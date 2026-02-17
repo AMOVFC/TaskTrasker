@@ -224,11 +224,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download OpenNext build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: opennext-build
-          path: apps/web/.open-next
+      - name: Download setyup node for build artifact
+        uses: actions/setup-node@v4
 
       - name: Verify OpenNext output exists
         run: |
