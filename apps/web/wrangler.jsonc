@@ -1,10 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tasktasker-web",
-
   "compatibility_date": "2026-02-16",
   "compatibility_flags": ["nodejs_compat"],
-
-  // Cloudflare Pages will upload from this folder
   "pages_build_output_dir": ".open-next"
 }
