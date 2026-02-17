@@ -201,6 +201,7 @@ jobs:
           wranglerVersion: '4'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
           command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }}
 
 
@@ -260,4 +261,5 @@ jobs:
           wranglerVersion: '4'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
           command: pages deploy apps/web/.vercel/output/static --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
