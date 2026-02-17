@@ -187,25 +187,29 @@ jobs:
           ls -la .open-next
         working-directory: apps/web
 
-      - name: Show OpenNext output
-        run: |
-          ls -la .open-next
-          ls -la .open-next/_worker.js || true
-        working-directory: apps/web
-
       - name: Derive preview branch alias
         id: preview_branch
         run: |
           SAFE_BRANCH=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
           echo "name=$SAFE_BRANCH" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy preview to Cloudflare Pages (OpenNext output)
+      - name: Deploy preview Worker (OpenNext)
         uses: cloudflare/wrangler-action@v3
         with:
           wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }}
+          workingDirectory: apps/web
+          command: deploy --name tasktasker-web-${{ steps.preview_branch.outputs.name }}
+
+
+      # - name: Deploy preview to Cloudflare Pages (OpenNext output)
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     wranglerVersion: '3.101.0'
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     command: pages deploy ${{ github.workspace }}/apps/web/.open-next --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.preview_branch.outputs.name }}
 
   deploy:
     name: Deploy to Cloudflare Pages via GitHub Actions
@@ -245,10 +249,19 @@ jobs:
           ls -la .open-next
         working-directory: apps/web
 
-      - name: Deploy to Cloudflare Pages (OpenNext output)
+      - name: Deploy production Worker (OpenNext)
         uses: cloudflare/wrangler-action@v3
         with:
           wranglerVersion: '3.101.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ${{ github.workspace }}/apps/web/.open-next/_worker.js --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
+          workingDirectory: apps/web
+          command: deploy --name tasktasker-web
+
+      # - name: Deploy to Cloudflare Pages (OpenNext output)
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     wranglerVersion: '3.101.0'
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     command: pages deploy ${{ github.workspace }}/apps/web/.open-next/_worker.js --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
