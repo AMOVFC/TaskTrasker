@@ -73,17 +73,7 @@ export function isLocalNoSupabaseModeEnabled() {
   return false
 }
 
-export function assertSupabaseConfiguredOutsideLocalMode() {
-  if (process.env.NODE_ENV === 'development') {
-    return
-  }
-
+export function isSupabaseConfiguredOrLocalModeEnabled() {
   const hasSupabase = Boolean(getSupabaseEnvOrNull())
-  if (hasSupabase || isLocalNoSupabaseModeEnabled()) {
-    return
-  }
-
-  throw new Error(
-    'Supabase environment variables are required outside local mode. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY).',
-  )
+  return hasSupabase || isLocalNoSupabaseModeEnabled()
 }
