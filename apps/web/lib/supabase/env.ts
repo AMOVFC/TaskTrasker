@@ -75,6 +75,10 @@ export function isLocalNoSupabaseModeEnabled() {
 }
 
 export function assertSupabaseConfiguredOutsideLocalMode() {
+  if (process.env.NODE_ENV === 'development') {
+    return
+  }
+
   const hasSupabase = Boolean(getSupabaseEnvOrNull())
   if (hasSupabase || isLocalNoSupabaseModeEnabled()) {
     return
