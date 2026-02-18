@@ -14,18 +14,6 @@ export default async function PlanPage() {
   const allowLocalNoSupabase = isLocalNoSupabaseModeEnabled()
   const isDevelopment = process.env.NODE_ENV === 'development'
 
-<<<<<<< ours
-=======
-  if (!hasSupabase && !isDevelopment && !allowLocalNoSupabase) {
-    throw new Error(
-      'Missing or invalid NEXT_PUBLIC_SUPABASE_URL, or missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    )
-  }
-
-  const supabase = hasSupabase ? await createClient() : null
-  const user = supabase ? (await supabase.auth.getUser()).data.user : null
-
->>>>>>> theirs
   const tasks = user && supabase
     ? (
         await supabase
