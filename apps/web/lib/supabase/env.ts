@@ -64,13 +64,14 @@ function parseBooleanEnv(value: string | undefined) {
 }
 
 export function isLocalNoSupabaseModeEnabled() {
+  const isDevelopment = process.env.NODE_ENV === 'development'
   const explicit = parseBooleanEnv(process.env.TASKTASKER_ENABLE_LOCAL_MODE)
 
-  if (explicit !== null) {
-    return explicit
+  if (isDevelopment) {
+    return true
   }
 
-  return process.env.NODE_ENV === 'development'
+  return explicit === true
 }
 
 export function assertSupabaseConfiguredOutsideLocalMode() {
