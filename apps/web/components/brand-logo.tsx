@@ -12,10 +12,10 @@ export default function BrandLogo({ href = '/', compact = false, className = '' 
 
   const content = (
     <>
-      <Image src="/tasktasker-logo-icon.svg" alt="TaskTasker logo" width={iconSize} height={iconSize} className="rounded-xl" />
+      <Image src="/tasktasker-logo-icon.svg" alt="TaskTrasker logo" width={iconSize} height={iconSize} className="rounded-xl" />
       <span className={`font-extrabold leading-none tracking-tight text-slate-100 ${compact ? 'text-lg' : 'text-2xl'}`}>
         <span className="block">Task</span>
-        <span className="block">Tasker</span>
+        <span className="block">Trasker</span>
       </span>
     </>
   )

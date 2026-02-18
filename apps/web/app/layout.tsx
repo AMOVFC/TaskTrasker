@@ -3,8 +3,8 @@ import './globals.css'
 import { MonitoringScripts } from '../components/monitoring-scripts'
 
 export const metadata: Metadata = {
-  title: 'TaskTasker - Tree-based Task Planning',
-  description: 'TaskTasker is a modern task + planning web app built for people who think in trees, not flat lists.',
+  title: 'TaskTrasker - Tree-based Task Planning',
+  description: 'TaskTrasker is a modern task + planning web app built for people who think in trees, not flat lists.',
   icons: {
     icon: '/tasktasker-logo-icon.svg',
     shortcut: '/tasktasker-logo-icon.svg',

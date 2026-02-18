@@ -67,7 +67,7 @@ const initialTree: TaskNode[] = [
   {
     id: makeId(),
     alias: 'task1',
-    title: 'Launch TaskTasker v1',
+    title: 'Launch TaskTrasker v1',
     description: 'due: 2026-03-01\nSpec doc: https://tasktasker.com/spec',
     status: 'in_progress',
     labels: ['release', 'priority-high'],
