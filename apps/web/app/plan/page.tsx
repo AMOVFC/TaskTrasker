@@ -14,6 +14,7 @@ export default async function PlanPage() {
 
   const hasSupabase = Boolean(getSupabaseEnvOrNull())
   const allowLocalNoSupabase = isLocalNoSupabaseModeEnabled()
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
   const supabase = hasSupabase ? await createClient() : null
   const user = supabase ? (await supabase.auth.getUser()).data.user : null
@@ -83,6 +84,17 @@ export default async function PlanPage() {
               subtitle="Runs without auth or backend persistence. Use this to test interactions while building locally."
               persistenceKey="tasktasker-plan-local"
             />
+          </section>
+        ) : isDevelopment ? (
+          <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+            <h2 className="text-xl font-semibold">Enable Supabase auth for dev parity</h2>
+            <p className="text-sm text-slate-300">
+              This dev environment is missing Supabase keys. Add env vars to test the same sign-in flow used on main, or set
+              <code className="mx-1 rounded bg-slate-800 px-1 py-0.5">TASKTASKER_ENABLE_LOCAL_MODE=true</code> to use local offline mode.
+            </p>
+            <Link href="/login?next=/plan" className="inline-flex text-sm text-cyan-300 hover:text-cyan-200">
+              Open login page
+            </Link>
           </section>
         ) : null}
 
