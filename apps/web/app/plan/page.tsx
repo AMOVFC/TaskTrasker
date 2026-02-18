@@ -12,7 +12,8 @@ export const runtime = 'nodejs'
 export default async function PlanPage() {
   const hasSupabase = Boolean(getSupabaseEnvOrNull())
   const allowLocalNoSupabase = isLocalNoSupabaseModeEnabled()
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  const supabase = hasSupabase ? await createClient() : null
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null
 
   const tasks = user && supabase
     ? (
