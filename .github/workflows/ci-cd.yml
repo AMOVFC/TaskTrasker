@@ -173,11 +173,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "SUPABASE_DB_URL is not configured" >&2
-            exit 1
-          fi
-          supabase db push --db-url "$SUPABASE_DB_URL" --include-all
+          supabase db push --db-url "$SUPABASE_DB_URL" --include-all --debug
 
   deploy_dev:
     name: Deploy PR to tasktrasker-dev
