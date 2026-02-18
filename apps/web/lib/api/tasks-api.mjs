@@ -1,5 +1,5 @@
 export const TASK_SELECT_FIELDS =
-  'id,user_id,parent_id,title,status,due_at,sort_order,created_at,updated_at'
+  'id,user_id,parent_id,blocking_task_id,title,status,force_completed,due_at,sort_order,created_at,updated_at'
 
 export const TASK_STATUS_VALUES = Object.freeze(['todo', 'in_progress', 'blocked', 'delayed', 'done'])
 
@@ -122,6 +122,7 @@ export function validateCreateTaskPayload(payload) {
   }
 
   const parentId = payload.parent_id
+  const sortOrder = payload.sort_order
 
   if (!(parentId === undefined || parentId === null || isUuid(parentId))) {
     return {
@@ -131,11 +132,20 @@ export function validateCreateTaskPayload(payload) {
     }
   }
 
+  if (!(sortOrder === undefined || (Number.isInteger(sortOrder) && sortOrder >= 0))) {
+    return {
+      ok: false,
+      status: 400,
+      error: buildError('invalid_sort_order', 'sort_order must be a non-negative integer when provided.'),
+    }
+  }
+
   return {
     ok: true,
     value: {
       title,
       parent_id: parentId ?? null,
+      sort_order: sortOrder ?? 0,
     },
   }
 }
@@ -149,7 +159,7 @@ export function validatePatchTaskPayload(payload) {
     }
   }
 
-  const allowedKeys = new Set(['title', 'status', 'due_at'])
+  const allowedKeys = new Set(['title', 'status', 'due_at', 'parent_id', 'sort_order', 'blocking_task_id', 'force_completed'])
   const payloadKeys = Object.keys(payload)
   const unknownKeys = payloadKeys.filter((key) => !allowedKeys.has(key))
 
@@ -198,6 +208,55 @@ export function validatePatchTaskPayload(payload) {
     }
 
     value.status = payload.status
+  }
+
+
+  if ('parent_id' in payload) {
+    if (!(payload.parent_id === null || isUuid(payload.parent_id))) {
+      return {
+        ok: false,
+        status: 400,
+        error: buildError('invalid_parent_id', 'parent_id must be null or a valid UUID.'),
+      }
+    }
+
+    value.parent_id = payload.parent_id
+  }
+
+  if ('sort_order' in payload) {
+    if (!Number.isInteger(payload.sort_order) || payload.sort_order < 0) {
+      return {
+        ok: false,
+        status: 400,
+        error: buildError('invalid_sort_order', 'sort_order must be a non-negative integer.'),
+      }
+    }
+
+    value.sort_order = payload.sort_order
+  }
+
+  if ('blocking_task_id' in payload) {
+    if (!(payload.blocking_task_id === null || isUuid(payload.blocking_task_id))) {
+      return {
+        ok: false,
+        status: 400,
+        error: buildError('invalid_blocking_task_id', 'blocking_task_id must be null or a valid UUID.'),
+      }
+    }
+
+    value.blocking_task_id = payload.blocking_task_id
+  }
+
+  if ('force_completed' in payload) {
+    if (typeof payload.force_completed !== 'boolean') {
+      return {
+        ok: false,
+        status: 400,
+        error: buildError('invalid_force_completed', 'force_completed must be a boolean.'),
+      }
+    }
+
+    value.force_completed = payload.force_completed
   }
 
   if ('due_at' in payload) {
@@ -253,6 +312,7 @@ export async function createTaskForUser(supabase, userId, payload, nowIso) {
       title: payload.title,
       user_id: userId,
       parent_id: payload.parent_id,
+      sort_order: payload.sort_order,
       status: 'todo',
       updated_at: nowIso,
     })

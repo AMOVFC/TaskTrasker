@@ -53,3 +53,33 @@ export function getAppUrlOrThrow() {
 
   return appUrl
 }
+
+
+function parseBooleanEnv(value: string | undefined) {
+  if (!value) return null
+  const normalized = value.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  return null
+}
+
+export function isLocalNoSupabaseModeEnabled() {
+  const explicit = parseBooleanEnv(process.env.TASKTASKER_ENABLE_LOCAL_MODE)
+
+  if (explicit !== null) {
+    return explicit
+  }
+
+  return process.env.NODE_ENV === 'development'
+}
+
+export function assertSupabaseConfiguredOutsideLocalMode() {
+  const hasSupabase = Boolean(getSupabaseEnvOrNull())
+  if (hasSupabase || isLocalNoSupabaseModeEnabled()) {
+    return
+  }
+
+  throw new Error(
+    'Supabase environment variables are required outside local mode. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY).',
+  )
+}
