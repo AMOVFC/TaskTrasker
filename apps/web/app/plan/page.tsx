@@ -10,11 +10,22 @@ import { signInWithGoogle, signOut } from './actions'
 export const runtime = 'nodejs'
 
 export default async function PlanPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const hasSupabase = Boolean(getSupabaseEnvOrNull())
+  const allowLocalNoSupabase = isLocalNoSupabaseModeEnabled()
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
+<<<<<<< ours
+=======
+  if (!hasSupabase && !isDevelopment && !allowLocalNoSupabase) {
+    throw new Error(
+      'Missing or invalid NEXT_PUBLIC_SUPABASE_URL, or missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    )
+  }
+
+  const supabase = hasSupabase ? await createClient() : null
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null
+
+>>>>>>> theirs
   const tasks = user && supabase
     ? (
         await supabase
@@ -53,15 +64,42 @@ export default async function PlanPage() {
           This is now wired for Supabase auth/session, task CRUD, optimistic updates, and realtime sync events.
         </div>
 
-        {user ? (
-          <PlanWorkspace userId={user.id} initialTasks={tasks} />
+        {hasSupabase ? (
+          user ? (
+            <PlanWorkspace userId={user.id} initialTasks={tasks} />
+          ) : (
+            <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+              <h2 className="text-xl font-semibold">Sign in required</h2>
+              <p className="mt-2 text-sm text-slate-300">
+                Use Continue with Google to start the OAuth flow and load your user-scoped tasks.
+              </p>
+              <Link href="/login?next=/plan" className="mt-4 inline-flex text-sm text-cyan-300 hover:text-cyan-200">
+                Open login page
+              </Link>
+            </section>
+          )
+        ) : allowLocalNoSupabase ? (
+          <section className="space-y-5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-5">
+            <div>
+              <h2 className="text-xl font-semibold text-amber-100">Local mode (no Supabase)</h2>
+              <p className="mt-2 text-sm text-amber-50">
+                Supabase environment variables were not found, so this page is running in local-only mode for quick beta UI testing.
+              </p>
+            </div>
+            <TaskTreePlayground
+              title="Local Task Playground"
+              subtitle="Runs without auth or backend persistence. Use this to test interactions while building locally."
+              persistenceKey="tasktasker-plan-local"
+            />
+          </section>
         ) : (
-          <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="text-xl font-semibold">Sign in required</h2>
-            <p className="mt-2 text-sm text-slate-300">
-              Use Continue with Google to start the OAuth flow and load your user-scoped tasks.
+          <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+            <h2 className="text-xl font-semibold">Enable Supabase configuration</h2>
+            <p className="text-sm text-slate-300">
+              This local development environment is missing Supabase keys. Add env vars to use the same sign-in flow as main, or set
+              <code className="mx-1 rounded bg-slate-800 px-1 py-0.5">TASKTASKER_ENABLE_LOCAL_MODE=true</code> to use local offline mode.
             </p>
-            <Link href="/login?next=/plan" className="mt-4 inline-flex text-sm text-cyan-300 hover:text-cyan-200">
+            <Link href="/login?next=/plan" className="inline-flex text-sm text-cyan-300 hover:text-cyan-200">
               Open login page
             </Link>
           </section>
