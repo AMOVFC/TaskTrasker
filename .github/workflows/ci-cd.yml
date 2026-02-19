@@ -20,17 +20,13 @@ concurrency:
 
 jobs:
   gate:
-    name: Gate / detect changes / avoid duplicate push+PR
+    name: Gate (avoid duplicate push runs when PR exists)
     runs-on: ubuntu-latest
     outputs:
       skip_push: ${{ steps.prcheck.outputs.skip_push }}
-      web_changed: ${{ steps.changes.outputs.web_changed }}
-      migrations_changed: ${{ steps.changes.outputs.migrations_changed }}
     steps:
-      - name: Checkout code (full history for diff)
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Skip push CI if branch has open PR to main
         id: prcheck
@@ -42,54 +38,25 @@ jobs:
           set -euo pipefail
           BRANCH="${GITHUB_REF_NAME}"
 
-          # If this branch already has an open PR targeting main, we skip push CI
-          COUNT=$(gh pr list --state open --head "$BRANCH" --base main --json number --jq 'length' || echo "0")
+          # If GH auth/list fails for any reason, do NOT block the pipeline.
+          COUNT="0"
+          if command -v gh >/dev/null 2>&1; then
+            COUNT="$(gh pr list --state open --head "$BRANCH" --base main --json number --jq 'length' 2>/dev/null || echo "0")"
+          fi
 
-          if [ "$COUNT" -gt 0 ]; then
+          if [ "${COUNT:-0}" -gt 0 ]; then
             echo "skip_push=true" >> "$GITHUB_OUTPUT"
             echo "Open PR to main exists for $BRANCH; skipping push CI to avoid duplicate runs."
           else
             echo "skip_push=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Detect changes
-        id: changes
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-            HEAD="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-            HEAD="${{ github.sha }}"
-          fi
-
-          echo "BASE=$BASE"
-          echo "HEAD=$HEAD"
-
-          CHANGED="$(git diff --name-only "$BASE" "$HEAD" || true)"
-          echo "$CHANGED"
-
-          if echo "$CHANGED" | grep -qE '^apps/web/'; then
-            echo "web_changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "web_changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if echo "$CHANGED" | grep -qE '^supabase/migrations/'; then
-            echo "migrations_changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "migrations_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No open PR to main for $BRANCH; continuing push CI."
           fi
 
   test:
     name: Tests, Quality & Security
     runs-on: ubuntu-latest
     needs: gate
-    if: needs.gate.outputs.web_changed == 'true' &&
-        (github.event_name != 'push' || needs.gate.outputs.skip_push != 'true')
+    if: github.event_name != 'push' || needs.gate.outputs.skip_push != 'true'
     timeout-minutes: 15
     defaults:
       run:
@@ -149,11 +116,9 @@ jobs:
     name: Apply Supabase migrations (PRs to main + main pushes)
     runs-on: ubuntu-latest
     needs: [gate, test]
-    if: needs.gate.outputs.migrations_changed == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.base_ref == 'main') ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        )
+    if: |
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     permissions:
       contents: read
 
@@ -163,24 +128,90 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect migration changes in this run
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+
+          echo "BASE=$BASE"
+          echo "HEAD=$HEAD"
+
+          if git diff --name-only "$BASE" "$HEAD" | grep -qE '^supabase/migrations/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Supabase CLI
+        if: steps.diff.outputs.changed == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Apply migrations to Supabase
+      - name: Apply migrations to Supabase (force IPv4)
+        if: steps.diff.outputs.changed == 'true'
         env:
+          # Prefer a pooler URL if you add it later; otherwise fall back
+          SUPABASE_DB_URL_POOLER: ${{ secrets.SUPABASE_DB_URL_POOLER }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
         run: |
           set -euo pipefail
-          supabase db push --db-url "$SUPABASE_DB_URL" --include-all --debug
+
+          DB_URL="${SUPABASE_DB_URL_POOLER:-$SUPABASE_DB_URL}"
+          if [ -z "${DB_URL}" ]; then
+            echo "Missing SUPABASE_DB_URL (or SUPABASE_DB_URL_POOLER) secret."
+            exit 1
+          fi
+
+          HOST="$(python - <<'PY'
+                import os, urllib.parse
+                u=os.environ["DB_URL"]
+                p=urllib.parse.urlparse(u)
+                print(p.hostname or "")
+                PY
+                )"
+          
+          if [ -z "$HOST" ]; then
+            echo "Could not parse hostname from DB URL."
+            exit 1
+          fi
+
+          echo "DB host: $HOST"
+          IPV4="$(getent ahostsv4 "$HOST" | awk 'NR==1{print $1}')"
+          if [ -z "$IPV4" ]; then
+            echo "Could not resolve IPv4 for $HOST (getent ahostsv4 returned nothing)."
+            exit 1
+          fi
+          echo "Resolved IPv4: $IPV4"
+
+          # Force IPv4 by appending hostaddr
+          if [[ "$DB_URL" == *\?* ]]; then
+            DB_URL="${DB_URL}&hostaddr=${IPV4}"
+          else
+            DB_URL="${DB_URL}?hostaddr=${IPV4}"
+          fi
+
+          supabase db push --db-url "$DB_URL" --include-all --debug
+
+      - name: No migrations changed
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "No files changed under supabase/migrations/; skipping db push."
 
   build_worker:
     name: Build OpenNext worker bundle
     runs-on: ubuntu-latest
-    needs: test
-    if: needs.gate.outputs.web_changed == 'true' &&
-        (github.event_name != 'push' || needs.gate.outputs.skip_push != 'true')
+    needs: [gate, test]
+    if: github.event_name != 'push' || needs.gate.outputs.skip_push != 'true'
     timeout-minutes: 15
     defaults:
       run:
@@ -237,9 +268,7 @@ jobs:
     name: Auto-bump web package version
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' &&
-        github.event_name == 'push' &&
-        github.actor != 'github-actions[bot]'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.actor != 'github-actions[bot]'
     permissions:
       contents: write
 
