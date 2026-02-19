@@ -165,12 +165,12 @@ jobs:
           fi
           git commit -m "ci: bump apps/web package version [skip ci]"
           git push
-
+          
   apply_migrations:
-    name: Apply Supabase migrations (only when needed)
+    name: Apply Supabase migrations (PRs to main only)
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     permissions:
       contents: read
 
@@ -180,14 +180,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect migration changes in this push
+      - name: Detect migration changes in this PR
         id: diff
         shell: bash
         run: |
           set -euo pipefail
 
-          BASE="${{ github.event.before }}"
-          HEAD="${{ github.sha }}"
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
 
           echo "Base: $BASE"
           echo "Head: $HEAD"
