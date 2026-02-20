@@ -1,6 +1,6 @@
 # Supabase + Google Auth + Sync/Save Plan
 
-This document explains how TaskTasker should use Supabase for authentication and data syncing.
+This document explains how TaskTrasker should use Supabase for authentication and data syncing.
 
 ## 1) Setup checklist
 

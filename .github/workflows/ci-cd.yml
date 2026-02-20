@@ -6,20 +6,57 @@ on:
       - '**'
   pull_request:
     branches:
-      - '**'
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # Prevent duplicate push+PR runs and cancel stale runs
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  gate:
+    name: Gate (avoid duplicate push runs when PR exists)
+    runs-on: ubuntu-latest
+    outputs:
+      skip_push: ${{ steps.prcheck.outputs.skip_push }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Skip push CI if branch has open PR to main
+        id: prcheck
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          # set -euo pipefail
+          BRANCH="${GITHUB_REF_NAME}"
+
+          # If GH auth/list fails for any reason, do NOT block the pipeline.
+          COUNT="0"
+          if command -v gh >/dev/null 2>&1; then
+            COUNT="$(gh pr list --state open --head "$BRANCH" --base main --json number --jq 'length' 2>/dev/null || echo "0")"
+          fi
+
+          if [ "${COUNT:-0}" -gt 0 ]; then
+            echo "skip_push=true" >> "$GITHUB_OUTPUT"
+            echo "Open PR to main exists for $BRANCH; skipping push CI to avoid duplicate runs."
+          else
+            echo "skip_push=false" >> "$GITHUB_OUTPUT"
+            echo "No open PR to main for $BRANCH; continuing push CI."
+          fi
+
   test:
     name: Tests, Quality & Security
     runs-on: ubuntu-latest
+    needs: gate
+    if: github.event_name != 'push' || needs.gate.outputs.skip_push != 'true'
     timeout-minutes: 15
     defaults:
       run:
@@ -27,6 +64,7 @@ jobs:
     env:
       NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
       APP_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -74,9 +112,75 @@ jobs:
         continue-on-error: true
         run: npm audit --audit-level=moderate
 
+  apply_migrations:
+    name: Apply Supabase migrations (PRs to main + main pushes)
+    runs-on: ubuntu-latest
+    needs: [gate, test]
+    if: |
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect migration changes in this run
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+
+          echo "BASE=$BASE"
+          echo "HEAD=$HEAD"
+
+          if git diff --name-only "$BASE" "$HEAD" | grep -qE '^supabase/migrations/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Supabase CLI
+        if: steps.diff.outputs.changed == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply migrations to Supabase (pooler)
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL_POOLER }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DB_URL:-}" ]; then
+            echo "Missing secret SUPABASE_DB_URL_POOLER"
+            exit 1
+          fi
+
+          supabase db push --db-url "$DB_URL" --include-all --debug --yes
+
+      - name: No migrations changed
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "No files changed under supabase/migrations/; skipping db push."
+
+
   build_worker:
     name: Build OpenNext worker bundle
     runs-on: ubuntu-latest
+    needs: [gate, test]
+    if: github.event_name != 'push' || needs.gate.outputs.skip_push != 'true'
     timeout-minutes: 15
     defaults:
       run:
@@ -96,13 +200,24 @@ jobs:
       - name: Install dependencies
         run: npm ci --registry=https://registry.npmjs.org/
 
+      - name: Set URLs for environment
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "APP_URL=https://dev.tasktrasker.com" >> "$GITHUB_ENV"
+            echo "NEXT_PUBLIC_APP_URL=https://dev.tasktrasker.com" >> "$GITHUB_ENV"
+          else
+            echo "APP_URL=https://tasktrasker.com" >> "$GITHUB_ENV"
+            echo "NEXT_PUBLIC_APP_URL=https://tasktrasker.com" >> "$GITHUB_ENV"
+          fi
+
       - name: Build application (OpenNext)
         run: npx --yes --package @opennextjs/cloudflare opennextjs-cloudflare build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          APP_URL: https://tasktrasker.com
-          NEXT_PUBLIC_APP_URL: https://tasktrasker.com
+          APP_URL: ${{ env.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ env.NEXT_PUBLIC_APP_URL }}
 
       - name: Verify OpenNext output exists
         run: |
@@ -154,31 +269,10 @@ jobs:
           git commit -m "ci: bump apps/web package version [skip ci]"
           git push
 
-  apply_migrations:
-    name: Apply Supabase migrations
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-
-      - name: Apply migrations to Supabase
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: |
-          supabase db push --db-url "$SUPABASE_DB_URL" --include-all --debug
-
   deploy_dev:
     name: Deploy PR to tasktrasker-dev
     runs-on: ubuntu-latest
-    needs: build_worker
+    needs: [build_worker, apply_migrations]
     if: github.event_name == 'pull_request'
     permissions:
       contents: read

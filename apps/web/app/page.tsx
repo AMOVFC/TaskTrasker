@@ -5,6 +5,7 @@ import { Mail, Check, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 import BrandLogo from '../components/brand-logo'
+import { appVersion } from '../lib/app-version'
 
 export default function Home() {
   const [email, setEmail] = useState('')
@@ -176,7 +177,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-700/50 bg-slate-900/50">
         <div className="max-w-6xl mx-auto px-6 py-8 text-center text-slate-400 text-sm">
-          <p>tasktrasker v0.1.1 • Early Proof of Concept • v1 First Full Release Coming Soon</p>
+          <p>tasktrasker {appVersion} • Early Proof of Concept • v1 First Full Release Coming Soon</p>
         </div>
       </footer>
     </div>

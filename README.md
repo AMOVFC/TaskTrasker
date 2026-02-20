@@ -1,10 +1,10 @@
-# TaskTasker - Tree-Based Task Management (v0)
+# TaskTrasker - Tree-Based Task Management (v0)
 
-**v0.0.1** - Initial coming soon page + proof of concept
+**Current app version:** sourced from `apps/web/package.json`
 
 This is the early version showcasing the core concept. 
 
-**TaskTasker** is a modern task + planning web app built for people who think in trees, not flat lists.
+**TaskTrasker** is a modern task + planning web app built for people who think in trees, not flat lists.
 
 It supports **endlessly nested tasks**, where every item:
 - Can have its own due date
@@ -12,7 +12,7 @@ It supports **endlessly nested tasks**, where every item:
 - Can depend on other tasks
 - Can be reordered and moved anywhere in the tree
 
-TaskTasker is built as a **PWA (Progressive Web App)** and is installable on Android with push notifications.
+TaskTrasker is built as a **PWA (Progressive Web App)** and is installable on Android with push notifications.
 
 Website: https://tasktasker.com
 
@@ -85,7 +85,7 @@ This ensures every production deploy is traceable to a GitHub Actions run and co
 ## 📁 Project Structure
 
 ```
-tasktasker/
+tasktrasker/
 ├── apps/
 │   └── web/              # Next.js application
 │       ├── app/          # App Router pages
@@ -110,12 +110,12 @@ tasktasker/
 
 # Project Vision
 
-TaskTasker is designed around a simple idea:
+TaskTrasker is designed around a simple idea:
 
 > Every task is a node.  
 > Every node is first-class.
 
-Unlike traditional to-do apps that flatten work into lists, TaskTasker treats planning as a structured hierarchy with workflow state and dependency awareness.
+Unlike traditional to-do apps that flatten work into lists, TaskTrasker treats planning as a structured hierarchy with workflow state and dependency awareness.
 
 Core principles:
 
@@ -299,7 +299,7 @@ Without restructuring the database.
 
 # Project Structure (Planned)
 
-tasktasker/
+tasktrasker/
 apps/
 web/ # Next.js app
 packages/
@@ -393,7 +393,7 @@ TBD
 
 # Philosophy
 
-TaskTasker is built around structured clarity.
+TaskTrasker is built around structured clarity.
 
 Tasks should not be flat.
 Work is rarely linear.

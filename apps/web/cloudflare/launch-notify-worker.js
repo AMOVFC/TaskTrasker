@@ -1,10 +1,10 @@
 /**
- * Cloudflare Worker webhook for TaskTasker launch notifications.
+ * Cloudflare Worker webhook for TaskTrasker launch notifications.
  *
  * Expected request body from the Next.js API route:
  * {
  *   "email": "person@example.com",
- *   "source": "tasktasker-web",
+ *   "source": "tasktrasker",
  *   "subscribedAt": "2026-01-01T00:00:00.000Z"
  * }
  *

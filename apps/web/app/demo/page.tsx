@@ -22,7 +22,7 @@ export default function DemoPage() {
 
           <h1 className="text-4xl font-bold mb-4">Interactive Task Tree Demo</h1>
           <p className="text-slate-300 mb-2">
-            This proof of concept demonstrates TaskTasker&apos;s core concept: <strong>every task is a node, and every node is first-class.</strong>
+            This proof of concept demonstrates TaskTrasker&apos;s core concept: <strong>every task is a node, and every node is first-class.</strong>
           </p>
           <p className="text-slate-400 text-sm">Try editing tasks, adding labels, and nesting in multiple ways to explore the upcoming product behavior.</p>
         </div>
@@ -56,13 +56,13 @@ export default function DemoPage() {
         </div>
 
         <div className="bg-slate-800/20 rounded-lg border border-slate-700/50 p-8">
-          <h2 className="text-lg font-bold mb-4">Why TaskTasker Differs</h2>
+          <h2 className="text-lg font-bold mb-4">Why TaskTrasker Differs</h2>
           <div className="space-y-4 text-slate-300">
             <p>
               <strong className="text-slate-100">Traditional apps:</strong> flatten work into lists.
             </p>
             <p>
-              <strong className="text-slate-100">TaskTasker:</strong> every task can become its own plan with nested child tasks and richer workflow states.
+              <strong className="text-slate-100">TaskTrasker:</strong> every task can become its own plan with nested child tasks and richer workflow states.
             </p>
           </div>
         </div>
