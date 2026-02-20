@@ -161,6 +161,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_POOLER }}
+          DB_URL: ${{ secrets.SUPABASE_DB_URL_POOLER }}
         run: |
           set -euo pipefail
           if [ -z "${SUPABASE_DB_URL:-}" ]; then
@@ -168,34 +169,6 @@ jobs:
             exit 1
           fi
           supabase db push --db-url "$SUPABASE_DB_URL" --include-all --debug
-
-          HOST="$(python - <<'PY'
-                import os, urllib.parse
-                u=os.environ["DB_URL"]
-                p=urllib.parse.urlparse(u)
-                print(p.hostname or "")
-                PY
-                )"
-          
-          if [ -z "$HOST" ]; then
-            echo "Could not parse hostname from DB URL."
-            exit 1
-          fi
-
-          echo "DB host: $HOST"
-          IPV4="$(getent ahostsv4 "$HOST" | awk 'NR==1{print $1}')"
-          if [ -z "$IPV4" ]; then
-            echo "Could not resolve IPv4 for $HOST (getent ahostsv4 returned nothing)."
-            exit 1
-          fi
-          echo "Resolved IPv4: $IPV4"
-
-          # Force IPv4 by appending hostaddr
-          if [[ "$DB_URL" == *\?* ]]; then
-            DB_URL="${DB_URL}&hostaddr=${IPV4}"
-          else
-            DB_URL="${DB_URL}?hostaddr=${IPV4}"
-          fi
 
           supabase db push --db-url "$DB_URL" --include-all --debug
 
