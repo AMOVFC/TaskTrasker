@@ -1,7 +1,7 @@
 import { CheckCircle2, Circle, AlertCircle, Zap, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
-import TaskTreePlayground from '../../components/task-tree-playground'
+import PlanWorkspace, { type TaskRecord } from '../../components/plan-workspace'
 
 const statusLegend = [
   { label: 'Todo', icon: Circle, color: 'text-slate-400' },
@@ -11,6 +11,48 @@ const statusLegend = [
 ]
 
 export default function DemoPage() {
+  const demoTasks: TaskRecord[] = [
+    {
+      id: 'demo-root-1',
+      user_id: 'demo-user',
+      parent_id: null,
+      blocking_task_id: null,
+      title: 'Launch TaskTrasker v1',
+      status: 'in_progress',
+      force_completed: false,
+      due_at: null,
+      sort_order: 0,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'demo-child-1',
+      user_id: 'demo-user',
+      parent_id: 'demo-root-1',
+      blocking_task_id: null,
+      title: 'Build auth + onboarding',
+      status: 'todo',
+      force_completed: false,
+      due_at: null,
+      sort_order: 0,
+      created_at: '2026-01-01T00:01:00.000Z',
+      updated_at: '2026-01-01T00:01:00.000Z',
+    },
+    {
+      id: 'demo-child-2',
+      user_id: 'demo-user',
+      parent_id: 'demo-root-1',
+      blocking_task_id: 'demo-child-1',
+      title: 'Finalize task tree interactions',
+      status: 'blocked',
+      force_completed: false,
+      due_at: null,
+      sort_order: 1,
+      created_at: '2026-01-01T00:02:00.000Z',
+      updated_at: '2026-01-01T00:02:00.000Z',
+    },
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="max-w-5xl mx-auto px-6 py-12">
@@ -49,10 +91,7 @@ export default function DemoPage() {
         </div>
 
         <div className="mb-12">
-          <TaskTreePlayground
-            title="Interactive Task Tree Playground"
-            subtitle="Add tasks, assign labels, change statuses, and move items up/down or nest/unnest to understand the full task model."
-          />
+          <PlanWorkspace userId="demo-user" initialTasks={demoTasks} mode="demo" />
         </div>
 
         <div className="bg-slate-800/20 rounded-lg border border-slate-700/50 p-8">
