@@ -7,11 +7,26 @@ function getSupabaseKey() {
   return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 }
 
+
+function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function getSupabaseEnvOrNull(): SupabaseEnv | null {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = getSupabaseKey()
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!rawSupabaseUrl || !supabaseKey) {
+    return null
+  }
+
+  const supabaseUrl = rawSupabaseUrl.trim()
+  if (!isValidHttpUrl(supabaseUrl)) {
     return null
   }
 
@@ -23,7 +38,7 @@ export function getSupabaseEnvOrThrow(): SupabaseEnv {
 
   if (!env) {
     throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL and either NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'Missing or invalid NEXT_PUBLIC_SUPABASE_URL, or missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY',
     )
   }
 
@@ -52,4 +67,22 @@ export function getAppUrlOrThrow() {
   }
 
   return appUrl
+}
+
+
+function parseBooleanEnv(value: string | undefined) {
+  if (!value) return null
+  const normalized = value.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  return null
+}
+
+export function isLocalNoSupabaseModeEnabled() {
+  if (process.env.NODE_ENV !== 'development') {
+    return false
+  }
+
+  const explicit = parseBooleanEnv(process.env.TASKTASKER_ENABLE_LOCAL_MODE)
+  return explicit === true
 }
