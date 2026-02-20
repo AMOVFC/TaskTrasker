@@ -5,6 +5,7 @@ import { getAuthErrorMessage, normalizeNextPath } from '../../lib/auth/login-flo
 import { getSupabaseEnvOrNull, isLocalNoSupabaseModeEnabled } from '../../lib/supabase/env'
 import { createClient } from '../../lib/supabase/server'
 import BrandLogo from '../../components/brand-logo'
+import GoogleLogo from '../../components/google-logo'
 import { signInWithGoogle } from '../plan/actions'
 
 export const runtime = 'nodejs'
@@ -90,7 +91,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <form action={signInWithGoogle} className="mt-6">
           <input type="hidden" name="next" value={next} />
-          <button className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+          <button className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 inline-flex items-center justify-center gap-2">
+            <GoogleLogo className="h-4 w-4" />
             Continue with Google
           </button>
         </form>
