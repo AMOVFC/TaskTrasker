@@ -1,17 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Mail, Check, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 import BrandLogo from '../components/brand-logo'
+import GoogleLogo from '../components/google-logo'
 import { appVersion } from '../lib/app-version'
+import { getSupabaseEnvOrNull } from '../lib/supabase/env'
+import { createClient as createSupabaseClient } from '../lib/supabase/client'
 
 export default function Home() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    let ignore = false
+
+    if (!getSupabaseEnvOrNull()) {
+      return
+    }
+
+    createSupabaseClient()
+      .then((supabase) => supabase.auth.getUser())
+      .then(({ data }) => {
+        if (!ignore) {
+          setIsAuthenticated(Boolean(data.user))
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setIsAuthenticated(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,10 +89,17 @@ export default function Home() {
               View Demo
             </Link>
             <Link
-              href="/login?next=/plan"
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors"
+              href={isAuthenticated ? '/plan' : '/login?next=/plan'}
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors inline-flex items-center gap-2"
             >
-              Sign in with Google
+              {isAuthenticated ? (
+                'My list'
+              ) : (
+                <>
+                  <GoogleLogo className="h-4 w-4" />
+                  Sign in with Google
+                </>
+              )}
             </Link>
           </div>
         </div>

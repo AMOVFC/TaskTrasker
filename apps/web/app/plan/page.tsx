@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import BrandLogo from '../../components/brand-logo'
+import GoogleLogo from '../../components/google-logo'
 import PlanWorkspace from '../../components/plan-workspace'
 import { getSupabaseEnvOrNull, isLocalNoSupabaseModeEnabled } from '../../lib/supabase/env'
 import { createClient } from '../../lib/supabase/server'
@@ -68,7 +69,8 @@ export default async function PlanPage() {
           ) : (
             <form action={signInWithGoogle}>
               <input type="hidden" name="next" value="/plan" />
-              <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+              <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 inline-flex items-center gap-2">
+                <GoogleLogo className="h-4 w-4" />
                 Continue with Google
               </button>
             </form>
