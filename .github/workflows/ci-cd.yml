@@ -107,7 +107,7 @@ jobs:
         continue-on-error: true
         run: npm run test
 
-      # IMPORTANT: audit is informational only — never fail CI on it
+      # informational only — never fail CI on audit
       - name: Run security audit (non-blocking)
         continue-on-error: true
         run: npm audit --audit-level=moderate || true
@@ -169,10 +169,13 @@ jobs:
             exit 1
           fi
 
+          # Export so Python can read it
+          export DB_URL
+
           HOST="$(python - <<'PY'
           import os, urllib.parse
-          u=os.environ["DB_URL"]
-          p=urllib.parse.urlparse(u)
+          u = os.environ["DB_URL"]
+          p = urllib.parse.urlparse(u)
           print(p.hostname or "")
           PY
           )"
@@ -181,12 +184,15 @@ jobs:
             exit 1
           fi
 
+          echo "DB host: $HOST"
           IPV4="$(getent ahostsv4 "$HOST" | awk 'NR==1{print $1}')"
           if [ -z "$IPV4" ]; then
             echo "Could not resolve IPv4 for $HOST."
             exit 1
           fi
+          echo "Resolved IPv4: $IPV4"
 
+          # Force IPv4 by appending hostaddr
           if [[ "$DB_URL" == *\?* ]]; then
             DB_URL="${DB_URL}&hostaddr=${IPV4}"
           else
@@ -242,6 +248,12 @@ jobs:
           APP_URL: ${{ env.APP_URL }}
           NEXT_PUBLIC_APP_URL: ${{ env.NEXT_PUBLIC_APP_URL }}
 
+      - name: Verify OpenNext output exists
+        run: |
+          test -d .open-next
+          test -f .open-next/worker.js
+          ls -la .open-next
+
       - name: Upload OpenNext build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -267,6 +279,13 @@ jobs:
         with:
           name: opennext-build
           path: apps/web/.open-next
+
+      - name: Verify OpenNext output exists
+        run: |
+          test -d .open-next
+          test -f .open-next/worker.js
+          ls -la .open-next
+        working-directory: apps/web
 
       - name: Deploy dev Worker (OpenNext)
         uses: cloudflare/wrangler-action@v3
@@ -330,6 +349,13 @@ jobs:
         with:
           name: opennext-build
           path: apps/web/.open-next
+
+      - name: Verify OpenNext output exists
+        run: |
+          test -d .open-next
+          test -f .open-next/worker.js
+          ls -la .open-next
+        working-directory: apps/web
 
       - name: Deploy production Worker (OpenNext)
         uses: cloudflare/wrangler-action@v3
