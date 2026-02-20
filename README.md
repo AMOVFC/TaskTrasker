@@ -1,6 +1,6 @@
 # TaskTrasker - Tree-Based Task Management (v0)
 
-**v0.0.1** - Initial coming soon page + proof of concept
+**Current app version:** sourced from `apps/web/package.json`
 
 This is the early version showcasing the core concept. 
 
