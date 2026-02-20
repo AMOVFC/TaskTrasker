@@ -160,21 +160,21 @@ jobs:
       - name: Apply migrations to Supabase (pooler)
         if: steps.diff.outputs.changed == 'true'
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_POOLER }}
           DB_URL: ${{ secrets.SUPABASE_DB_URL_POOLER }}
         run: |
           set -euo pipefail
-          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+
+          if [ -z "${DB_URL:-}" ]; then
             echo "Missing secret SUPABASE_DB_URL_POOLER"
             exit 1
           fi
-          supabase db push --db-url "$SUPABASE_DB_URL" --include-all --debug
 
-          supabase db push --db-url "$DB_URL" --include-all --debug
+          supabase db push --db-url "$DB_URL" --include-all --debug --yes
 
       - name: No migrations changed
         if: steps.diff.outputs.changed != 'true'
         run: echo "No files changed under supabase/migrations/; skipping db push."
+
 
   build_worker:
     name: Build OpenNext worker bundle
