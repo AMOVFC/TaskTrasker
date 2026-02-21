@@ -221,6 +221,21 @@ export default function TaskTreePlayground({
     window.localStorage.setItem(persistenceKey, JSON.stringify(tasks))
   }, [tasks, persistenceKey])
 
+  useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+
+      document.querySelectorAll<HTMLDetailsElement>('details[open][data-ui-dropdown="true"]').forEach((details) => {
+        if (details.contains(target)) return
+        details.open = false
+      })
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
   const total = useMemo(() => countNodes(tasks), [tasks])
   const flatTasks = useMemo(() => flattenTasks(tasks), [tasks])
   const completionByAlias = useMemo(
@@ -414,6 +429,18 @@ export default function TaskTreePlayground({
     const isExpanded = expanded[node.id] ?? true
     const Icon = statusStyle[node.status].icon
 
+    const setNodeStatus = (nextStatus: TaskStatus) => {
+      if (nextStatus === 'done') {
+        const result = canMarkDone(node)
+        if (!result.ok) {
+          setBlockErrors((prev) => ({ ...prev, [node.id]: result.message ?? 'Task is blocked.' }))
+          return
+        }
+      }
+      setBlockErrors((prev) => ({ ...prev, [node.id]: '' }))
+      updateNodeById(node.id, (n) => ({ ...n, status: nextStatus }))
+    }
+
     return (
       <div key={node.id} className="space-y-2">
         <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
@@ -444,28 +471,27 @@ export default function TaskTreePlayground({
                   className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs"
                   title="Variable name for block expressions"
                 />
-                <select
-                  value={node.status}
-                  onChange={(e) => {
-                    const nextStatus = e.target.value as TaskStatus
-                    if (nextStatus === 'done') {
-                      const result = canMarkDone(node)
-                      if (!result.ok) {
-                        setBlockErrors((prev) => ({ ...prev, [node.id]: result.message ?? 'Task is blocked.' }))
-                        return
-                      }
-                    }
-                    setBlockErrors((prev) => ({ ...prev, [node.id]: '' }))
-                    updateNodeById(node.id, (n) => ({ ...n, status: nextStatus }))
-                  }}
-                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs"
-                >
-                  {statusOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <details data-ui-dropdown="true" className="relative">
+                  <summary className="list-none cursor-pointer rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100 transition-colors hover:border-slate-500 hover:bg-slate-700">
+                    Status: {statusOptions.find((opt) => opt.value === node.status)?.label ?? node.status} ▾
+                  </summary>
+                  <div className="absolute left-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
+                    {statusOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setNodeStatus(opt.value)}
+                        className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                          node.status === opt.value
+                            ? 'bg-cyan-500/15 text-cyan-200'
+                            : 'text-slate-200 hover:bg-slate-800 hover:text-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </details>
                 <span className={`text-xs px-2 py-1 rounded ${statusStyle[node.status].chip}`}>{node.status.replace('_', ' ')}</span>
               </div>
 
