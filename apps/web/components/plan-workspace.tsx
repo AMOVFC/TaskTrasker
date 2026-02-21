@@ -22,12 +22,36 @@ type DropPosition = 'before' | 'inside'
 type WorkspaceView = 'manual' | 'upcoming' | 'calendar' | 'status_board' | 'sorted' | 'web'
 
 const viewOptions: { id: WorkspaceView; label: string; description: string }[] = [
-  { id: 'manual', label: 'Manual', description: 'Default drag-and-drop layout. Your custom order is preserved.' },
-  { id: 'upcoming', label: 'Upcoming', description: 'Timeline-style grouping focused on what needs attention soon.' },
-  { id: 'calendar', label: 'Calendar', description: 'Monthly date grid grouped by each task due date.' },
-  { id: 'status_board', label: 'Status board', description: 'Kanban-style swimlanes by status for fast progress scanning.' },
-  { id: 'sorted', label: 'Sorted', description: 'Sorted by status priority: blocked, in progress, to do, delayed, done.' },
-  { id: 'web', label: 'Web layout', description: 'Network-style cards that spread tasks across the page.' },
+  {
+    id: 'manual',
+    label: 'Manual',
+    description: 'Default drag-and-drop layout. Your custom order is preserved.',
+  },
+  {
+    id: 'upcoming',
+    label: 'Upcoming',
+    description: 'Timeline-style grouping focused on what needs attention soon.',
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    description: 'Monthly date grid grouped by each task due date.',
+  },
+  {
+    id: 'status_board',
+    label: 'Status board',
+    description: 'Kanban-style swimlanes by status for fast progress scanning.',
+  },
+  {
+    id: 'sorted',
+    label: 'Sorted',
+    description: 'Sorted by status priority: blocked, in progress, to do, delayed, done.',
+  },
+  {
+    id: 'web',
+    label: 'Web layout',
+    description: 'Network-style cards that spread tasks across the page.',
+  },
 ]
 
 const statusOptions: TaskRecord['status'][] = ['todo', 'in_progress', 'blocked', 'delayed', 'done']
@@ -58,6 +82,17 @@ function formatDueDate(value: string | null): string | null {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return null
   return parsed.toLocaleDateString()
+}
+
+function formatDateInputValue(value: string | Date | null): string {
+  if (!value) return ''
+  const parsed = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function orderTasks(tasks: TaskRecord[]) {
@@ -109,27 +144,10 @@ export default function PlanWorkspace({
   }, [initialTasks])
 
   useEffect(() => {
-    const onMouseDown = (event: MouseEvent) => {
-      const target = event.target as Element | null
-      if (target?.closest('[data-ui-dropdown="true"]')) return
-
-      document
-        .querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown="true"] details[open]')
-        .forEach((details) => {
-          details.open = false
-        })
-    }
-
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [])
-
-  useEffect(() => {
     if (typeof window === 'undefined') return
-
-    const storedView = window.localStorage.getItem('tasktasker-plan-active-view')
-    if (storedView && viewOptions.some((view) => view.id === storedView)) {
-      setActiveView(storedView as WorkspaceView)
+    const stored = window.localStorage.getItem('tasktasker-plan-active-view')
+    if (stored && viewOptions.some((view) => view.id === stored)) {
+      setActiveView(stored as WorkspaceView)
     }
 
     const storedWide = window.localStorage.getItem('tasktasker-plan-wide-screen')
@@ -145,7 +163,6 @@ export default function PlanWorkspace({
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-
     document.documentElement.dataset.planWide = isWideScreen ? 'true' : 'false'
     window.localStorage.setItem('tasktasker-plan-wide-screen', String(isWideScreen))
 
@@ -218,6 +235,23 @@ export default function PlanWorkspace({
   }, [tasks])
 
   const taskById = useMemo(() => Object.fromEntries(tasks.map((task) => [task.id, task])), [tasks])
+  const tasksByDueDate = useMemo(() => {
+    const map: Record<string, TaskRecord[]> = {}
+
+    for (const task of tasks) {
+      if (!task.due_at) continue
+      const dayKey = formatDateInputValue(task.due_at)
+      if (!dayKey) continue
+      map[dayKey] = map[dayKey] ?? []
+      map[dayKey].push(task)
+    }
+
+    for (const key of Object.keys(map)) {
+      map[key] = orderTasks(map[key])
+    }
+
+    return map
+  }, [tasks])
 
   const descendantsDone = (taskId: string): boolean => {
     const children = childrenByParent[taskId] ?? []
@@ -641,10 +675,203 @@ export default function PlanWorkspace({
     setPending((prev) => ({ ...prev, [task.id]: false }))
   }
 
+  const renderTaskSummaryCard = (task: TaskRecord) => {
+    const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
+    const parsedDue = formatDueDate(task.due_at)
+    return (
+      <article key={task.id} className="rounded-md border border-slate-700 bg-slate-950/80 p-3 text-sm">
+        <p className={`font-medium ${task.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+        <div className="mt-2 space-y-1 text-xs text-slate-400">
+          <p>Status: {task.status.replace('_', ' ')}</p>
+          {parsedDue ? <p>Due: {parsedDue}</p> : <p>No due date</p>}
+          {blockedBy ? <p className="text-amber-300">Blocked by: {blockedBy.title}</p> : null}
+        </div>
+      </article>
+    )
+  }
 
-  const closeDropdown = (event: { currentTarget: EventTarget & HTMLElement }) => {
-    const details = event.currentTarget.closest('details')
-    if (details) details.removeAttribute('open')
+  const renderUpcomingView = () => {
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const sevenDaysFromNow = new Date(startOfToday)
+    sevenDaysFromNow.setDate(startOfToday.getDate() + 7)
+
+    const buckets: { id: string; label: string; tasks: TaskRecord[] }[] = [
+      { id: 'overdue', label: 'Overdue', tasks: [] },
+      { id: 'today', label: 'Due today', tasks: [] },
+      { id: 'week', label: 'Next 7 days', tasks: [] },
+      { id: 'later', label: 'Later scheduled', tasks: [] },
+      { id: 'unscheduled', label: 'No due date', tasks: [] },
+    ]
+
+    for (const task of tasks) {
+      if (!task.due_at) {
+        buckets[4].tasks.push(task)
+        continue
+      }
+
+      const dueDate = new Date(task.due_at)
+      const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
+
+      if (dueDay < startOfToday) {
+        buckets[0].tasks.push(task)
+      } else if (dueDay.getTime() === startOfToday.getTime()) {
+        buckets[1].tasks.push(task)
+      } else if (dueDay <= sevenDaysFromNow) {
+        buckets[2].tasks.push(task)
+      } else {
+        buckets[3].tasks.push(task)
+      }
+    }
+
+    return (
+      <div className="grid gap-3 md:grid-cols-2">
+        {buckets.map((bucket) => (
+          <section key={bucket.id} className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <h3 className="text-sm font-semibold text-white">{bucket.label}</h3>
+            {orderTasks(bucket.tasks).length ? (
+              <div className="space-y-2">{orderTasks(bucket.tasks).map((task) => renderTaskSummaryCard(task))}</div>
+            ) : (
+              <p className="text-xs text-slate-500">No tasks in this bucket.</p>
+            )}
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  const renderCalendarView = () => {
+    const datedKeys = Object.keys(tasksByDueDate).sort()
+    const monthSeed = datedKeys[0] ? new Date(`${datedKeys[0]}T00:00:00`) : new Date()
+    const year = monthSeed.getFullYear()
+    const month = monthSeed.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const leadingBlanks = firstDay.getDay()
+    const totalCells = Math.ceil((leadingBlanks + lastDay.getDate()) / 7) * 7
+    const cells: Array<{ key: string; date: Date | null }> = []
+
+    for (let index = 0; index < totalCells; index += 1) {
+      const dateNumber = index - leadingBlanks + 1
+      if (dateNumber < 1 || dateNumber > lastDay.getDate()) {
+        cells.push({ key: `blank-${index}`, date: null })
+      } else {
+        cells.push({ key: `${year}-${month}-${dateNumber}`, date: new Date(year, month, dateNumber) })
+      }
+    }
+
+    const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    return (
+      <section className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+        <h3 className="text-sm font-semibold text-white">
+          {firstDay.toLocaleString(undefined, { month: 'long', year: 'numeric' })}
+        </h3>
+        <div className="grid grid-cols-7 gap-2 text-center text-xs text-slate-400">
+          {weekdayLabels.map((label) => (
+            <p key={label}>{label}</p>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-7">
+          {cells.map((cell) => {
+            if (!cell.date) {
+              return <div key={cell.key} className="hidden rounded border border-transparent p-2 lg:block" />
+            }
+
+            const dayKey = formatDateInputValue(cell.date)
+            const dayTasks = tasksByDueDate[dayKey] ?? []
+
+            return (
+              <div key={cell.key} className="min-h-24 rounded border border-slate-800 bg-slate-950/70 p-2">
+                <p className="text-xs font-semibold text-slate-300">{cell.date.getDate()}</p>
+                <div className="mt-1 space-y-1">
+                  {dayTasks.slice(0, 3).map((task) => (
+                    <p key={task.id} className="truncate rounded bg-cyan-500/10 px-1 py-0.5 text-xs text-cyan-200">
+                      {task.title}
+                    </p>
+                  ))}
+                  {dayTasks.length > 3 ? <p className="text-xs text-slate-500">+{dayTasks.length - 3} more</p> : null}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+    )
+  }
+
+  const renderStatusBoardView = () => (
+    <div className="grid gap-3 lg:grid-cols-5">
+      {statusOptions.map((status) => {
+        const laneTasks = orderTasks(tasks.filter((task) => task.status === status))
+        return (
+          <section key={status} className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+            <h3 className="text-sm font-semibold capitalize text-white">{status.replace('_', ' ')}</h3>
+            {laneTasks.length ? (
+              <div className="space-y-2">{laneTasks.map((task) => renderTaskSummaryCard(task))}</div>
+            ) : (
+              <p className="text-xs text-slate-500">No tasks in this lane.</p>
+            )}
+          </section>
+        )
+      })}
+    </div>
+  )
+
+
+  const renderSortedView = () => {
+    const priority: Record<TaskRecord['status'], number> = {
+      blocked: 0,
+      in_progress: 1,
+      todo: 2,
+      delayed: 3,
+      done: 4,
+    }
+
+    const sorted = [...tasks].sort((a, b) => {
+      if (priority[a.status] !== priority[b.status]) return priority[a.status] - priority[b.status]
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+      return a.created_at.localeCompare(b.created_at)
+    })
+
+    return (
+      <section className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+        <h3 className="text-sm font-semibold text-white">Status priority order</h3>
+        <p className="text-xs text-slate-400">Blocked → In progress → To do → Delayed → Done</p>
+        <div className="space-y-2">{sorted.map((task) => renderTaskSummaryCard(task))}</div>
+      </section>
+    )
+  }
+
+  const renderWebLayoutView = () => {
+    const rootTasks = childrenByParent.root ?? []
+
+    return (
+      <section className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+        <h3 className="text-sm font-semibold text-white">Web layout</h3>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {rootTasks.map((task) => {
+            const childCount = childrenByParent[task.id]?.length ?? 0
+            return (
+              <article key={task.id} className="rounded-lg border border-cyan-500/30 bg-slate-950/80 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-cyan-100">{task.title}</p>
+                  <span className="text-[10px] uppercase tracking-wide text-slate-400">{task.status.replace('_', ' ')}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">{childCount} linked subtasks</p>
+                <div className="mt-2 space-y-2">
+                  {(childrenByParent[task.id] ?? []).slice(0, 4).map((child) => (
+                    <div key={child.id} className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200">
+                      {child.title}
+                    </div>
+                  ))}
+                  {childCount > 4 ? <p className="text-xs text-slate-500">+{childCount - 4} more</p> : null}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </section>
+    )
   }
 
   const activeViewMeta = viewOptions.find((view) => view.id === activeView)
@@ -768,8 +995,8 @@ export default function PlanWorkspace({
                   >
                     Done ✓
                   </button>
-                  <details className="relative">
-                    <summary className="list-none cursor-pointer border-l border-emerald-500/30 px-2 py-1 text-xs text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200">
+                  <details>
+                    <summary className="list-none cursor-pointer px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
                       ▾
                     </summary>
                   <div className="absolute left-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
@@ -856,7 +1083,7 @@ export default function PlanWorkspace({
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+    <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold text-white">{mode === 'demo' ? 'Demo Tasks (local placeholders)' : 'Signed-in Tasks (Supabase)'}</h2>
         <p className="text-sm text-slate-400">
@@ -889,11 +1116,11 @@ export default function PlanWorkspace({
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200" data-ui-dropdown="true">
+        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200">
           <button type="button" className="px-2 py-1 text-xs transition-colors hover:bg-slate-800 hover:text-white">
             View: {activeViewMeta?.label ?? 'Manual'}
           </button>
-          <details className="relative">
+          <details>
             <summary className="list-none cursor-pointer px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
               ▾
             </summary>
@@ -902,10 +1129,7 @@ export default function PlanWorkspace({
                 <button
                   key={view.id}
                   type="button"
-                  onClick={(event) => {
-                    closeDropdown(event)
-                    setActiveView(view.id)
-                  }}
+                  onClick={() => setActiveView(view.id)}
                   title={view.description}
                   className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
                     view.id === activeView
@@ -936,26 +1160,27 @@ export default function PlanWorkspace({
 
       {activeView === 'manual' ? (
         <>
-      <div
-        className="rounded border border-dashed border-slate-700 p-2 text-xs text-slate-400"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault()
-          if (!dragTaskId) return
-          const rootCount = (childrenByParent.root ?? []).length
-          void moveTask(dragTaskId, null, rootCount)
-        }}
-      >
-        Drop here to move a task to the root level
-      </div>
-
-      <div className="space-y-2">{renderTasks(null)}</div>
+          <div
+            className="rounded border border-dashed border-slate-700 p-2 text-xs text-slate-400"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault()
+              if (!dragTaskId) return
+              const rootCount = (childrenByParent.root ?? []).length
+              void moveTask(dragTaskId, null, rootCount)
+            }}
+          >
+            Drop here to move a task to the root level
+          </div>
+          <div className="space-y-2">{renderTasks(null)}</div>
         </>
-      ) : (
-        <div className="rounded border border-slate-700 bg-slate-950/60 p-3 text-sm text-slate-300">
-          {activeViewMeta?.description}
-        </div>
-      )}
+      ) : null}
+
+      {activeView === 'upcoming' ? renderUpcomingView() : null}
+      {activeView === 'calendar' ? renderCalendarView() : null}
+      {activeView === 'status_board' ? renderStatusBoardView() : null}
+      {activeView === 'sorted' ? renderSortedView() : null}
+      {activeView === 'web' ? renderWebLayoutView() : null}
     </section>
   )
 }

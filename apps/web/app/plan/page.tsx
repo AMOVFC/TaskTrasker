@@ -57,7 +57,7 @@ export default async function PlanPage() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <nav className="sticky top-0 z-30 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <div className="plan-nav-shell mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <BrandLogo compact />
 
           {user ? (
@@ -78,11 +78,7 @@ export default async function PlanPage() {
         </div>
       </nav>
 
-      <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
-        <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-100">
-          This is now wired for Supabase auth/session, task CRUD, optimistic updates, and realtime sync events.
-        </div>
-
+      <div className="plan-shell mx-auto max-w-5xl space-y-4 px-4 py-6 sm:px-6">
         {hasSupabase ? (
           user ? (
             <PlanWorkspace userId={user.id} initialTasks={tasks} />
