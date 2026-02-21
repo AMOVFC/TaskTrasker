@@ -424,6 +424,11 @@ export default function TaskTreePlayground({
     setTasks(removeAtPath(tasks, path).tree)
   }
 
+  const closeDropdown = (event: { currentTarget: EventTarget & HTMLElement }) => {
+    const details = event.currentTarget.closest('details')
+    if (details) details.removeAttribute('open')
+  }
+
   const renderNode = (node: TaskNode) => {
     const isExpanded = expanded[node.id] ?? true
     const Icon = statusStyle[node.status].icon
@@ -474,7 +479,7 @@ export default function TaskTreePlayground({
                   <button type="button" className="px-2 py-1 text-xs">
                     Status: {statusOptions.find((opt) => opt.value === node.status)?.label ?? node.status}
                   </button>
-                  <details>
+                  <details className="relative">
                     <summary className="list-none cursor-pointer border-l border-slate-700 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-100">
                       ▾
                     </summary>
@@ -483,7 +488,10 @@ export default function TaskTreePlayground({
                         <button
                           key={opt.value}
                           type="button"
-                          onClick={() => setNodeStatus(opt.value)}
+                          onClick={(event) => {
+                            closeDropdown(event)
+                            setNodeStatus(opt.value)
+                          }}
                           className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
                             node.status === opt.value
                               ? 'bg-cyan-500/15 text-cyan-200'
