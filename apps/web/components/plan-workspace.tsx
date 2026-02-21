@@ -21,6 +21,8 @@ export type TaskRecord = {
 type DropPosition = 'before' | 'inside'
 
 const statusOptions: TaskRecord['status'][] = ['todo', 'in_progress', 'blocked', 'delayed', 'done']
+const sharedSelectClassName =
+  'w-full appearance-none rounded-md border border-slate-700 bg-slate-950 px-2 py-1 pr-7 text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40'
 
 function parseDueDateFromDescription(description: string): string | null {
   const ymdMatch = description.match(/\b(\d{4}-\d{2}-\d{2})\b/)
@@ -613,31 +615,37 @@ export default function PlanWorkspace({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={task.status}
-                  onChange={(event) => updateTaskStatus(task, event.target.value as TaskRecord['status'])}
-                  className="w-32 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
-                >
-                  {statusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={task.blocking_task_id ?? ''}
-                  onChange={(event) => updateBlocker(task, event.target.value)}
-                  className="w-44 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40 truncate"
-                >
-                  <option value="">No blocker</option>
-                  {tasks
-                    .filter((candidate) => candidate.id !== task.id)
-                    .map((candidate) => (
-                      <option key={candidate.id} value={candidate.id}>
-                        {candidate.title}
+                <label className="relative w-32">
+                  <select
+                    value={task.status}
+                    onChange={(event) => updateTaskStatus(task, event.target.value as TaskRecord['status'])}
+                    className={`${sharedSelectClassName} text-sm`}
+                  >
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
                       </option>
                     ))}
-                </select>
+                  </select>
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">▾</span>
+                </label>
+                <label className="relative w-44">
+                  <select
+                    value={task.blocking_task_id ?? ''}
+                    onChange={(event) => updateBlocker(task, event.target.value)}
+                    className={`${sharedSelectClassName} truncate text-xs`}
+                  >
+                    <option value="">No blocker</option>
+                    {tasks
+                      .filter((candidate) => candidate.id !== task.id)
+                      .map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.title}
+                        </option>
+                      ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">▾</span>
+                </label>
                 <div className="relative flex items-center rounded border border-emerald-500/40 bg-emerald-500/5 text-emerald-300">
                   <button
                     type="button"
