@@ -169,7 +169,17 @@ jobs:
             exit 1
           fi
 
-          supabase db push --db-url "$DB_URL" --include-all --debug --yes
+          # Pooler connections can reuse server-side sessions, which may surface
+          # prepared statement collisions across retries/runs.
+          # Add pgbouncer-safe connection parameters so the client avoids
+          # server-side prepared statements when possible.
+          if [[ "$DB_URL" == *\?* ]]; then
+            DB_URL="$DB_URL&pgbouncer=true&statement_cache_mode=describe"
+          else
+            DB_URL="$DB_URL?pgbouncer=true&statement_cache_mode=describe"
+          fi
+
+          supabase db push --db-url "$DB_URL" --include-all --yes
 
       - name: No migrations changed
         if: steps.diff.outputs.changed != 'true'
@@ -179,8 +189,8 @@ jobs:
   build_worker:
     name: Build OpenNext worker bundle
     runs-on: ubuntu-latest
-    needs: [gate, test]
-    if: github.event_name != 'push' || needs.gate.outputs.skip_push != 'true'
+    # Start immediately so build runs in parallel with gate/test/migrations.
+    # Downstream deploy jobs still require test/migration jobs to pass.
     timeout-minutes: 15
     defaults:
       run:
