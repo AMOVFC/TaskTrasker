@@ -72,23 +72,23 @@ alter table public.tasks enable row level security;
 create policy "Users can select own tasks"
 on public.tasks
 for select
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id);
 
 create policy "Users can insert own tasks"
 on public.tasks
 for insert
-with check (auth.uid() = user_id);
+with check ((select auth.uid()) = user_id);
 
 create policy "Users can update own tasks"
 on public.tasks
 for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 create policy "Users can delete own tasks"
 on public.tasks
 for delete
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id);
 ```
 
 ## 6) Security notes
