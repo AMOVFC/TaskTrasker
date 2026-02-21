@@ -179,8 +179,8 @@ jobs:
   build_worker:
     name: Build OpenNext worker bundle
     runs-on: ubuntu-latest
-    needs: [gate, test]
-    if: github.event_name != 'push' || needs.gate.outputs.skip_push != 'true'
+    # Start immediately so build runs in parallel with gate/test/migrations.
+    # Downstream deploy jobs still require test/migration jobs to pass.
     timeout-minutes: 15
     defaults:
       run:
