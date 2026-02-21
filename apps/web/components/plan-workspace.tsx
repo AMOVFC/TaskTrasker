@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 
 import { createClient } from '../lib/supabase/client'
 
@@ -235,6 +235,14 @@ export default function PlanWorkspace({
   }, [tasks])
 
   const taskById = useMemo(() => Object.fromEntries(tasks.map((task) => [task.id, task])), [tasks])
+
+  const closeDropdown = (event: MouseEvent<HTMLElement>) => {
+    const details = event.currentTarget.closest('details')
+    if (details instanceof HTMLDetailsElement) {
+      details.open = false
+    }
+  }
+
   const tasksByDueDate = useMemo(() => {
     const map: Record<string, TaskRecord[]> = {}
 
