@@ -22,6 +22,13 @@ type DropPosition = 'before' | 'inside'
 
 const statusOptions: TaskRecord['status'][] = ['todo', 'in_progress', 'blocked', 'delayed', 'done']
 
+function formatStatusLabel(status: TaskRecord['status']): string {
+  return status
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 function parseDueDateFromDescription(description: string): string | null {
   const ymdMatch = description.match(/\b(\d{4}-\d{2}-\d{2})\b/)
   const mdyMatch = description.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/)
@@ -67,6 +74,7 @@ export default function PlanWorkspace({
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [newChildTitles, setNewChildTitles] = useState<Record<string, string>>({})
   const [descriptions, setDescriptions] = useState<Record<string, string>>({})
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -88,6 +96,18 @@ export default function PlanWorkspace({
       return next
     })
   }, [initialTasks])
+
+  useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('[data-ui-dropdown-root="true"]')) return
+      setOpenDropdownId(null)
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   useEffect(() => {
     if (!supabase || mode !== 'supabase') return
@@ -613,60 +633,124 @@ export default function PlanWorkspace({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={task.status}
-                  onChange={(event) => updateTaskStatus(task, event.target.value as TaskRecord['status'])}
-                  className="w-32 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
-                >
-                  {statusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={task.blocking_task_id ?? ''}
-                  onChange={(event) => updateBlocker(task, event.target.value)}
-                  className="w-44 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40 truncate"
-                >
-                  <option value="">No blocker</option>
-                  {tasks
-                    .filter((candidate) => candidate.id !== task.id)
-                    .map((candidate) => (
-                      <option key={candidate.id} value={candidate.id}>
-                        {candidate.title}
-                      </option>
-                    ))}
-                </select>
-                <div className="relative flex items-center rounded border border-emerald-500/40 bg-emerald-500/5 text-emerald-300">
+                <div data-ui-dropdown-root="true" className="relative">
                   <button
                     type="button"
-                    onClick={() => completeTask(task, false)}
-                    className="px-2 py-1 text-xs transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                    onClick={() => setOpenDropdownId((prev) => (prev === `${task.id}-status` ? null : `${task.id}-status`))}
+                    className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 transition-colors hover:border-slate-500 hover:bg-slate-900"
                   >
-                    Done ✓
+                    Status: {formatStatusLabel(task.status)} ▾
                   </button>
-                  <details>
-                    <summary className="list-none cursor-pointer border-l border-emerald-500/30 px-2 py-1 text-xs text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200">
-                      ▾
-                    </summary>
+                  {openDropdownId === `${task.id}-status` ? (
+                    <div className="absolute left-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
+                      {statusOptions.map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            setOpenDropdownId(null)
+                            void updateTaskStatus(task, status)
+                          }}
+                          className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                            task.status === status
+                              ? 'bg-cyan-500/15 text-cyan-200'
+                              : 'text-slate-200 hover:bg-slate-800 hover:text-slate-100'
+                          }`}
+                        >
+                          {formatStatusLabel(status)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <div data-ui-dropdown-root="true" className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdownId((prev) => (prev === `${task.id}-blocker` ? null : `${task.id}-blocker`))}
+                    className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 transition-colors hover:border-slate-500 hover:bg-slate-900"
+                  >
+                    Blocker: {blockedBy ? blockedBy.title : 'None'} ▾
+                  </button>
+                  {openDropdownId === `${task.id}-blocker` ? (
+                    <div className="absolute left-0 z-20 mt-1 max-h-60 w-56 space-y-1 overflow-auto rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenDropdownId(null)
+                          void updateBlocker(task, '')
+                        }}
+                        className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                          task.blocking_task_id
+                            ? 'text-slate-200 hover:bg-slate-800 hover:text-slate-100'
+                            : 'bg-cyan-500/15 text-cyan-200'
+                        }`}
+                      >
+                        No blocker
+                      </button>
+                      {tasks
+                        .filter((candidate) => candidate.id !== task.id)
+                        .map((candidate) => (
+                          <button
+                            key={candidate.id}
+                            type="button"
+                            onClick={() => {
+                              setOpenDropdownId(null)
+                              void updateBlocker(task, candidate.id)
+                            }}
+                            className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                              task.blocking_task_id === candidate.id
+                                ? 'bg-cyan-500/15 text-cyan-200'
+                                : 'text-slate-200 hover:bg-slate-800 hover:text-slate-100'
+                            }`}
+                          >
+                            {candidate.title}
+                          </button>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+                <div data-ui-dropdown-root="true" className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdownId((prev) => (prev === `${task.id}-actions` ? null : `${task.id}-actions`))}
+                    className="rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                  >
+                    Done Actions ▾
+                  </button>
+                  {openDropdownId === `${task.id}-actions` ? (
                     <div className="absolute left-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
                       <button
                         type="button"
-                        onClick={() => completeTask(task, true)}
+                        onClick={() => {
+                          setOpenDropdownId(null)
+                          void completeTask(task, false)
+                        }}
+                        className="block w-full rounded px-2 py-1 text-left text-xs text-emerald-300 transition-colors hover:bg-emerald-500/10 hover:text-emerald-200"
+                      >
+                        Mark done
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenDropdownId(null)
+                          void completeTask(task, true)
+                        }}
                         className="block w-full rounded px-2 py-1 text-left text-xs text-amber-300 transition-colors hover:bg-amber-500/10 hover:text-amber-200"
                       >
                         Force complete
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteTask(task)}
+                        onClick={() => {
+                          setOpenDropdownId(null)
+                          void deleteTask(task)
+                        }}
                         className="block w-full rounded px-2 py-1 text-left text-xs text-rose-300 transition-colors hover:bg-rose-500/10 hover:text-rose-200"
                       >
                         Delete
                       </button>
                     </div>
-                  </details>
+                  ) : null}
                 </div>
               </div>
             </div>
