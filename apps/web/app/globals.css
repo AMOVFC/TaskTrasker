@@ -7,3 +7,11 @@
     @apply bg-slate-50 text-slate-900 antialiased;
   }
 }
+
+@layer utilities {
+  :root[data-plan-wide='true'] .plan-shell,
+  :root[data-plan-wide='true'] .plan-nav-shell {
+    max-width: none;
+    width: 100%;
+  }
+}
