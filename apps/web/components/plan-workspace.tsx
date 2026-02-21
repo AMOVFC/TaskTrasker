@@ -77,11 +77,15 @@ function formatDueDate(value: string | null): string | null {
   return parsed.toLocaleDateString()
 }
 
-function formatDateInputValue(value: string | null): string {
+function formatDateInputValue(value: string | Date | null): string {
   if (!value) return ''
-  const parsed = new Date(value)
+  const parsed = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(parsed.getTime())) return ''
-  return parsed.toISOString().slice(0, 10)
+
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function orderTasks(tasks: TaskRecord[]) {
@@ -766,7 +770,7 @@ export default function PlanWorkspace({
               return <div key={cell.key} className="hidden rounded border border-transparent p-2 lg:block" />
             }
 
-            const dayKey = formatDateInputValue(cell.date.toISOString())
+            const dayKey = formatDateInputValue(cell.date)
             const dayTasks = tasksByDueDate[dayKey] ?? []
 
             return (
