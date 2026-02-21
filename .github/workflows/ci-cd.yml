@@ -169,7 +169,17 @@ jobs:
             exit 1
           fi
 
-          supabase db push --db-url "$DB_URL" --include-all --debug --yes
+          # Pooler connections can reuse server-side sessions, which may surface
+          # prepared statement collisions across retries/runs.
+          # Add pgbouncer-safe connection parameters so the client avoids
+          # server-side prepared statements when possible.
+          if [[ "$DB_URL" == *\?* ]]; then
+            DB_URL="$DB_URL&pgbouncer=true&statement_cache_mode=describe"
+          else
+            DB_URL="$DB_URL?pgbouncer=true&statement_cache_mode=describe"
+          fi
+
+          supabase db push --db-url "$DB_URL" --include-all --yes
 
       - name: No migrations changed
         if: steps.diff.outputs.changed != 'true'
