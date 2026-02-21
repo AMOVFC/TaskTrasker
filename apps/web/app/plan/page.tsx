@@ -3,7 +3,6 @@ import Link from 'next/link'
 import BrandLogo from '../../components/brand-logo'
 import GoogleLogo from '../../components/google-logo'
 import PlanWorkspace from '../../components/plan-workspace'
-import TaskTreePlayground from '../../components/task-tree-playground'
 import { getSupabaseEnvOrNull, isLocalNoSupabaseModeEnabled } from '../../lib/supabase/env'
 import { createClient } from '../../lib/supabase/server'
 import { signInWithGoogle, signOut } from './actions'
@@ -25,6 +24,35 @@ export default async function PlanPage() {
           .order('created_at', { ascending: true })
       ).data ?? []
     : []
+
+  const localTasks = [
+    {
+      id: 'local-root-1',
+      user_id: 'local-user',
+      parent_id: null,
+      blocking_task_id: null,
+      title: 'Local mode onboarding',
+      status: 'in_progress' as const,
+      force_completed: false,
+      due_at: null,
+      sort_order: 0,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'local-child-1',
+      user_id: 'local-user',
+      parent_id: 'local-root-1',
+      blocking_task_id: null,
+      title: 'Try drag + drop and blockers',
+      status: 'todo' as const,
+      force_completed: false,
+      due_at: null,
+      sort_order: 0,
+      created_at: '2026-01-01T00:01:00.000Z',
+      updated_at: '2026-01-01T00:01:00.000Z',
+    },
+  ]
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -77,11 +105,7 @@ export default async function PlanPage() {
                 Supabase environment variables were not found, so this page is running in local-only mode for quick beta UI testing.
               </p>
             </div>
-            <TaskTreePlayground
-              title="Local Task Playground"
-              subtitle="Runs without auth or backend persistence. Use this to test interactions while building locally."
-              persistenceKey="tasktasker-plan-local"
-            />
+            <PlanWorkspace userId="local-user" initialTasks={localTasks} mode="demo" />
           </section>
         ) : (
           <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-5">

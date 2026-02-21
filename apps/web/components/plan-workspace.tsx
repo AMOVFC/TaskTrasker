@@ -22,6 +22,27 @@ type DropPosition = 'before' | 'inside'
 
 const statusOptions: TaskRecord['status'][] = ['todo', 'in_progress', 'blocked', 'delayed', 'done']
 
+function parseDueDateFromDescription(description: string): string | null {
+  const ymdMatch = description.match(/\b(\d{4}-\d{2}-\d{2})\b/)
+  const mdyMatch = description.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/)
+  const duePhraseMatch = description.match(/due\s*[:\-]\s*([A-Za-z]{3,9}\s+\d{1,2},\s*\d{4})/i)
+
+  const candidate = ymdMatch?.[1] ?? mdyMatch?.[1] ?? duePhraseMatch?.[1]
+  if (!candidate) return null
+
+  const parsed = new Date(candidate)
+  if (Number.isNaN(parsed.getTime())) return null
+
+  return parsed.toISOString()
+}
+
+function formatDueDate(value: string | null): string | null {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toLocaleDateString()
+}
+
 function orderTasks(tasks: TaskRecord[]) {
   return [...tasks].sort((a, b) => {
     if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
@@ -32,9 +53,11 @@ function orderTasks(tasks: TaskRecord[]) {
 export default function PlanWorkspace({
   userId,
   initialTasks,
+  mode = 'supabase',
 }: {
   userId: string
   initialTasks: TaskRecord[]
+  mode?: 'supabase' | 'demo'
 }) {
   const [supabase, setSupabase] = useState<Awaited<ReturnType<typeof createClient>> | null>(null)
   const [tasks, setTasks] = useState<TaskRecord[]>(orderTasks(initialTasks))
@@ -43,19 +66,31 @@ export default function PlanWorkspace({
   const [error, setError] = useState('')
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [newChildTitles, setNewChildTitles] = useState<Record<string, string>>({})
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    if (mode !== 'supabase') return
     createClient()
       .then((client) => setSupabase(client))
       .catch((clientError: Error) => setError(clientError.message))
-  }, [])
+  }, [mode])
 
   useEffect(() => {
     setTasks(orderTasks(initialTasks))
   }, [initialTasks])
 
   useEffect(() => {
-    if (!supabase) return
+    setDescriptions((prev) => {
+      const next = { ...prev }
+      for (const task of initialTasks) {
+        next[task.id] = next[task.id] ?? ''
+      }
+      return next
+    })
+  }, [initialTasks])
+
+  useEffect(() => {
+    if (!supabase || mode !== 'supabase') return
 
     const channel = supabase
       .channel('tasks-sync')
@@ -100,7 +135,7 @@ export default function PlanWorkspace({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase, userId])
+  }, [supabase, userId, mode])
 
   const childrenByParent = useMemo(() => {
     const map: Record<string, TaskRecord[]> = {}
@@ -159,6 +194,31 @@ export default function PlanWorkspace({
     return result.task
   }
 
+  const updateTaskDueAt = async (taskId: string, dueAt: string | null) => {
+    const task = taskById[taskId]
+    if (!task || task.due_at === dueAt) return
+
+    const previousTask = task
+    const optimistic = { ...task, due_at: dueAt, updated_at: new Date().toISOString() }
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
+    setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    const updated = await patchTask(task, { due_at: dueAt }, 'Could not update due date.')
+    if (!updated) {
+      setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? previousTask : item))))
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? updated : item))))
+    setPending((prev) => ({ ...prev, [task.id]: false }))
+  }
+
   const createTask = async () => {
     setError('')
     const title = newTaskTitle.trim()
@@ -187,6 +247,11 @@ export default function PlanWorkspace({
     setTasks((prev) => orderTasks([...prev, optimistic]))
     setPending((prev) => ({ ...prev, [tempId]: true }))
     setNewTaskTitle('')
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [tempId]: false }))
+      return
+    }
 
     const response = await fetch('/api/tasks', {
       method: 'POST',
@@ -235,6 +300,11 @@ export default function PlanWorkspace({
     setPending((prev) => ({ ...prev, [tempId]: true }))
     setNewChildTitles((prev) => ({ ...prev, [parentTask.id]: '' }))
 
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [tempId]: false }))
+      return
+    }
+
     const response = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -259,6 +329,11 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
     setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
 
     const updated = await patchTask(task, { status, force_completed: false }, 'Could not update task status.')
     if (!updated) {
@@ -290,6 +365,11 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
     setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
 
     const updated = await patchTask(
       task,
@@ -362,6 +442,17 @@ export default function PlanWorkspace({
       }
       return orderTasks(Object.values(byId))
     })
+
+    if (mode === 'demo') {
+      setPending((prev) => {
+        const next = { ...prev }
+        for (const id of updates.keys()) {
+          next[id] = false
+        }
+        return next
+      })
+      return
+    }
 
     const results = await Promise.all(
       Array.from(updates.values()).map(async (task) => {
@@ -445,6 +536,11 @@ export default function PlanWorkspace({
     setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
     setPending((prev) => ({ ...prev, [task.id]: true }))
 
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
     const updated = await patchTask(task, { blocking_task_id: blockingTaskId }, 'Could not set task blocker.')
     if (!updated) {
       setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? task : item))))
@@ -462,6 +558,11 @@ export default function PlanWorkspace({
 
     setTasks((prev) => prev.filter((item) => item.id !== task.id))
     setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
 
     const response = await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' })
 
@@ -512,24 +613,10 @@ export default function PlanWorkspace({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => completeTask(task, false)}
-                  className="rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-500/10"
-                >
-                  Complete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => completeTask(task, true)}
-                  className="rounded border border-amber-500/40 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/10"
-                >
-                  Force complete
-                </button>
                 <select
                   value={task.status}
                   onChange={(event) => updateTaskStatus(task, event.target.value as TaskRecord['status'])}
-                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100"
+                  className="w-32 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
@@ -540,7 +627,7 @@ export default function PlanWorkspace({
                 <select
                   value={task.blocking_task_id ?? ''}
                   onChange={(event) => updateBlocker(task, event.target.value)}
-                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  className="w-44 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 shadow-sm transition-colors hover:border-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/40 truncate"
                 >
                   <option value="">No blocker</option>
                   {tasks
@@ -551,19 +638,75 @@ export default function PlanWorkspace({
                       </option>
                     ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() => deleteTask(task)}
-                  className="rounded border border-rose-500/40 px-2 py-1 text-sm text-rose-300 hover:bg-rose-500/10"
-                >
-                  Delete
-                </button>
+                <div className="relative flex items-center rounded border border-emerald-500/40 bg-emerald-500/5 text-emerald-300">
+                  <button
+                    type="button"
+                    onClick={() => completeTask(task, false)}
+                    className="px-2 py-1 text-xs transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                  >
+                    Done ✓
+                  </button>
+                  <details>
+                    <summary className="list-none cursor-pointer border-l border-emerald-500/30 px-2 py-1 text-xs text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200">
+                      ▾
+                    </summary>
+                    <div className="absolute left-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => completeTask(task, true)}
+                        className="block w-full rounded px-2 py-1 text-left text-xs text-amber-300 transition-colors hover:bg-amber-500/10 hover:text-amber-200"
+                      >
+                        Force complete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteTask(task)}
+                        className="block w-full rounded px-2 py-1 text-left text-xs text-rose-300 transition-colors hover:bg-rose-500/10 hover:text-rose-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </details>
+                </div>
               </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs text-slate-400">Description (demo parses dates like 2026-03-01, 03/01/2026, or &quot;due: March 1, 2026&quot;)</label>
+              <textarea
+                value={descriptions[task.id] ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setDescriptions((prev) => ({ ...prev, [task.id]: value }))
+                  const parsedDueDate = parseDueDateFromDescription(value)
+                  const currentTask = taskById[task.id]
+                  if (!currentTask || currentTask.due_at === parsedDueDate) return
+                  setTasks((prev) =>
+                    orderTasks(
+                      prev.map((item) =>
+                        item.id === task.id ? { ...item, due_at: parsedDueDate, updated_at: new Date().toISOString() } : item
+                      )
+                    )
+                  )
+                }}
+                onBlur={() => {
+                  const parsedDueDate = parseDueDateFromDescription(descriptions[task.id] ?? '')
+                  void updateTaskDueAt(task.id, parsedDueDate)
+                }}
+                rows={2}
+                placeholder="Add details and include a due date to auto-assign."
+                className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+              />
+              <p className="text-xs text-slate-400">Due date: {formatDueDate(taskById[task.id]?.due_at) ?? 'None parsed yet'}</p>
             </div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
                 value={newChildTitles[task.id] ?? ''}
                 onChange={(event) => setNewChildTitles((prev) => ({ ...prev, [task.id]: event.target.value }))}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return
+                  event.preventDefault()
+                  void createChildTask(task)
+                }}
                 placeholder="Add subtask"
                 className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 sm:max-w-xs"
               />
@@ -587,14 +730,22 @@ export default function PlanWorkspace({
   return (
     <section className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/70 p-5">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-white">Signed-in Tasks (Supabase)</h2>
-        <p className="text-sm text-slate-400">Drag tasks before/inside each other, assign blockers, and complete with optional force override.</p>
+        <h2 className="text-xl font-semibold text-white">{mode === 'demo' ? 'Demo Tasks (local placeholders)' : 'Signed-in Tasks (Supabase)'}</h2>
+        <p className="text-sm text-slate-400">
+          Drag tasks before/inside each other, assign blockers, and complete with optional force override.
+          {mode === 'demo' ? ' Changes stay in-memory for this browser session only.' : ''}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           value={newTaskTitle}
           onChange={(event) => setNewTaskTitle(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') return
+            event.preventDefault()
+            void createTask()
+          }}
           placeholder="Add a task title"
           className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
         />
