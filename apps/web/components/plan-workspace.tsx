@@ -19,6 +19,16 @@ export type TaskRecord = {
 }
 
 type DropPosition = 'before' | 'inside'
+type WorkspaceView = 'manual' | 'upcoming' | 'calendar' | 'status_board' | 'sorted' | 'web'
+
+const viewOptions: { id: WorkspaceView; label: string; description: string }[] = [
+  { id: 'manual', label: 'Manual', description: 'Default drag-and-drop layout. Your custom order is preserved.' },
+  { id: 'upcoming', label: 'Upcoming', description: 'Timeline-style grouping focused on what needs attention soon.' },
+  { id: 'calendar', label: 'Calendar', description: 'Monthly date grid grouped by each task due date.' },
+  { id: 'status_board', label: 'Status board', description: 'Kanban-style swimlanes by status for fast progress scanning.' },
+  { id: 'sorted', label: 'Sorted', description: 'Sorted by status priority: blocked, in progress, to do, delayed, done.' },
+  { id: 'web', label: 'Web layout', description: 'Network-style cards that spread tasks across the page.' },
+]
 
 const statusOptions: TaskRecord['status'][] = ['todo', 'in_progress', 'blocked', 'delayed', 'done']
 
@@ -74,6 +84,8 @@ export default function PlanWorkspace({
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [newChildTitles, setNewChildTitles] = useState<Record<string, string>>({})
   const [descriptions, setDescriptions] = useState<Record<string, string>>({})
+  const [activeView, setActiveView] = useState<WorkspaceView>('manual')
+  const [isWideScreen, setIsWideScreen] = useState(false)
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -101,14 +113,46 @@ export default function PlanWorkspace({
       const target = event.target as Element | null
       if (target?.closest('[data-ui-dropdown="true"]')) return
 
-      document.querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown="true"] details[open]').forEach((details) => {
-        details.open = false
-      })
+      document
+        .querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown="true"] details[open]')
+        .forEach((details) => {
+          details.open = false
+        })
     }
 
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const storedView = window.localStorage.getItem('tasktasker-plan-active-view')
+    if (storedView && viewOptions.some((view) => view.id === storedView)) {
+      setActiveView(storedView as WorkspaceView)
+    }
+
+    const storedWide = window.localStorage.getItem('tasktasker-plan-wide-screen')
+    if (storedWide === 'true') {
+      setIsWideScreen(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-plan-active-view', activeView)
+  }, [activeView])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    document.documentElement.dataset.planWide = isWideScreen ? 'true' : 'false'
+    window.localStorage.setItem('tasktasker-plan-wide-screen', String(isWideScreen))
+
+    return () => {
+      delete document.documentElement.dataset.planWide
+    }
+  }, [isWideScreen])
 
   useEffect(() => {
     if (!supabase || mode !== 'supabase') return
@@ -603,6 +647,8 @@ export default function PlanWorkspace({
     if (details) details.removeAttribute('open')
   }
 
+  const activeViewMeta = viewOptions.find((view) => view.id === activeView)
+
   const renderTasks = (parentId: string | null, depth = 0) => {
     const branchTasks = childrenByParent[parentId ?? 'root'] ?? []
 
@@ -842,6 +888,54 @@ export default function PlanWorkspace({
 
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200" data-ui-dropdown="true">
+          <button type="button" className="px-2 py-1 text-xs transition-colors hover:bg-slate-800 hover:text-white">
+            View: {activeViewMeta?.label ?? 'Manual'}
+          </button>
+          <details className="relative">
+            <summary className="list-none cursor-pointer px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+              ▾
+            </summary>
+            <div className="absolute left-0 z-20 mt-1 w-48 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
+              {viewOptions.map((view) => (
+                <button
+                  key={view.id}
+                  type="button"
+                  onClick={(event) => {
+                    closeDropdown(event)
+                    setActiveView(view.id)
+                  }}
+                  title={view.description}
+                  className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                    view.id === activeView
+                      ? 'bg-cyan-500/10 text-cyan-200'
+                      : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  {view.label}
+                </button>
+              ))}
+            </div>
+          </details>
+          <button
+            type="button"
+            onClick={() => setIsWideScreen((prev) => !prev)}
+            title={isWideScreen ? 'Exit wide screen' : 'Enter wide screen'}
+            aria-label={isWideScreen ? 'Exit wide screen' : 'Enter wide screen'}
+            className="border-l border-slate-700 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+          >
+            {isWideScreen ? '[×]' : '[ ]'}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-xs text-slate-400">
+        Manual drag-and-drop positions stay saved to each task, and you can switch between views anytime without losing layout.
+      </p>
+
+      {activeView === 'manual' ? (
+        <>
       <div
         className="rounded border border-dashed border-slate-700 p-2 text-xs text-slate-400"
         onDragOver={(event) => event.preventDefault()}
@@ -856,6 +950,12 @@ export default function PlanWorkspace({
       </div>
 
       <div className="space-y-2">{renderTasks(null)}</div>
+        </>
+      ) : (
+        <div className="rounded border border-slate-700 bg-slate-950/60 p-3 text-sm text-slate-300">
+          {activeViewMeta?.description}
+        </div>
+      )}
     </section>
   )
 }
