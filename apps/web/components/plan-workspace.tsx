@@ -243,42 +243,6 @@ export default function PlanWorkspace({
     }
   }
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const closeOpenDropdowns = (event: Event) => {
-      const path = event.composedPath()
-
-      const openDropdowns = document.querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown] details[open]')
-      openDropdowns.forEach((dropdown) => {
-        if (!path.includes(dropdown)) {
-          dropdown.open = false
-        }
-      })
-    }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-
-      const openDropdowns = document.querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown] details[open]')
-      openDropdowns.forEach((dropdown) => {
-        dropdown.open = false
-      })
-    }
-
-    document.addEventListener('pointerdown', closeOpenDropdowns, true)
-    document.addEventListener('click', closeOpenDropdowns, true)
-    document.addEventListener('focusin', closeOpenDropdowns)
-    document.addEventListener('keydown', handleEscape)
-    return () => {
-      document.removeEventListener('pointerdown', closeOpenDropdowns, true)
-      document.removeEventListener('click', closeOpenDropdowns, true)
-      document.removeEventListener('focusin', closeOpenDropdowns)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [])
-
-
   const tasksByDueDate = useMemo(() => {
     const map: Record<string, TaskRecord[]> = {}
 
