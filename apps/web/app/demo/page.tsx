@@ -55,7 +55,7 @@ export default function DemoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-5xl mx-auto px-6 py-12">
+      <div className="demo-plan-shell mx-auto max-w-5xl px-6 py-12">
         <div className="mb-12">
           <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-200 mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4" />
