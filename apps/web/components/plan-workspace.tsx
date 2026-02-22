@@ -172,6 +172,20 @@ export default function PlanWorkspace({
   }, [isWideScreen])
 
   useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Element | null
+      if (target?.closest('[data-ui-dropdown="true"]')) return
+
+      document.querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown="true"] details[open]').forEach((details) => {
+        details.open = false
+      })
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  useEffect(() => {
     if (!supabase || mode !== 'supabase') return
 
     const channel = supabase
@@ -925,7 +939,7 @@ export default function PlanWorkspace({
                   <button type="button" className="px-2 py-1 text-xs">
                     Status: {formatStatusLabel(task.status)}
                   </button>
-                  <details className="relative">
+                  <details>
                     <summary className="list-none cursor-pointer border-l border-slate-700 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100">
                       ▾
                     </summary>
@@ -954,7 +968,7 @@ export default function PlanWorkspace({
                   <button type="button" className="max-w-40 truncate px-2 py-1 text-xs" title={blockedBy ? blockedBy.title : 'None'}>
                     Blocker: {blockedBy ? blockedBy.title : 'None'}
                   </button>
-                  <details className="relative">
+                  <details>
                     <summary className="list-none cursor-pointer border-l border-slate-700 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100">
                       ▾
                     </summary>
