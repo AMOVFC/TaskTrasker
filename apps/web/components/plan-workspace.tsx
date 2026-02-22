@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 
 import { createClient } from '../lib/supabase/client'
 
@@ -235,6 +235,44 @@ export default function PlanWorkspace({
   }, [tasks])
 
   const taskById = useMemo(() => Object.fromEntries(tasks.map((task) => [task.id, task])), [tasks])
+
+  const closeDropdown = (event: MouseEvent<HTMLElement>) => {
+    const details = event.currentTarget.closest('details')
+    if (details instanceof HTMLDetailsElement) {
+      details.open = false
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const closeOpenDropdowns = (target: EventTarget | null) => {
+      if (!(target instanceof Node)) return
+
+      const openDropdowns = document.querySelectorAll<HTMLDetailsElement>('[data-ui-dropdown] details[open]')
+      openDropdowns.forEach((dropdown) => {
+        if (!dropdown.contains(target)) {
+          dropdown.open = false
+        }
+      })
+    }
+
+    const handleDocumentClick = (event: globalThis.MouseEvent) => {
+      closeOpenDropdowns(event.target)
+    }
+
+    const handleFocusIn = (event: FocusEvent) => {
+      closeOpenDropdowns(event.target)
+    }
+
+    document.addEventListener('click', handleDocumentClick, true)
+    document.addEventListener('focusin', handleFocusIn)
+    return () => {
+      document.removeEventListener('click', handleDocumentClick, true)
+      document.removeEventListener('focusin', handleFocusIn)
+    }
+  }, [])
+
   const tasksByDueDate = useMemo(() => {
     const map: Record<string, TaskRecord[]> = {}
 
@@ -1116,7 +1154,7 @@ export default function PlanWorkspace({
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200">
+        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200" data-ui-dropdown="true">
           <button type="button" className="px-2 py-1 text-xs transition-colors hover:bg-slate-800 hover:text-white">
             View: {activeViewMeta?.label ?? 'Manual'}
           </button>
