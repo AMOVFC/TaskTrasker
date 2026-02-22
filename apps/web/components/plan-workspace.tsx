@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react'
 
 import { createClient } from '../lib/supabase/client'
 
@@ -172,7 +172,7 @@ export default function PlanWorkspace({
   }, [isWideScreen])
 
   useEffect(() => {
-    const onMouseDown = (event: MouseEvent) => {
+    const onMouseDown = (event: globalThis.MouseEvent) => {
       const target = event.target as Element | null
       if (target?.closest('[data-ui-dropdown="true"]')) return
 
@@ -250,7 +250,7 @@ export default function PlanWorkspace({
 
   const taskById = useMemo(() => Object.fromEntries(tasks.map((task) => [task.id, task])), [tasks])
 
-  const closeDropdown = (event: MouseEvent<HTMLElement>) => {
+  const closeDropdown = (event: ReactMouseEvent<HTMLElement>) => {
     const details = event.currentTarget.closest('details')
     if (details instanceof HTMLDetailsElement) {
       details.open = false
