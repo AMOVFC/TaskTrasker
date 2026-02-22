@@ -1124,7 +1124,7 @@ export default function PlanWorkspace({
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200">
+        <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200" data-ui-dropdown="true">
           <button type="button" className="px-2 py-1 text-xs transition-colors hover:bg-slate-800 hover:text-white">
             View: {activeViewMeta?.label ?? 'Manual'}
           </button>
