@@ -10,7 +10,8 @@
 
 @layer utilities {
   :root[data-plan-wide='true'] .plan-shell,
-  :root[data-plan-wide='true'] .plan-nav-shell {
+  :root[data-plan-wide='true'] .plan-nav-shell,
+  :root[data-plan-wide='true'] .demo-plan-shell {
     max-width: none;
     width: 100%;
   }
