@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react'
 
 import { createClient } from '../lib/supabase/client'
 
@@ -203,6 +203,8 @@ export default function PlanWorkspace({
     if (typeof window === 'undefined') return
     window.localStorage.setItem('tasktasker-plan-retention-days', String(completedRetentionDays))
   }, [completedRetentionDays])
+
+  useEffect(() => {
     const onMouseDown = (event: globalThis.MouseEvent) => {
       const target = event.target as Element | null
       if (target?.closest('[data-ui-dropdown="true"]')) return
