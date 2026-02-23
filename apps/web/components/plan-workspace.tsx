@@ -122,7 +122,6 @@ export default function PlanWorkspace({
   const [activeView, setActiveView] = useState<WorkspaceView>('manual')
   const [isWideScreen, setIsWideScreen] = useState(false)
   const [hideCompleted, setHideCompleted] = useState(false)
-  const [autoDeleteCompleted, setAutoDeleteCompleted] = useState(false)
   const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
 
   useEffect(() => {
@@ -163,11 +162,6 @@ export default function PlanWorkspace({
       setHideCompleted(true)
     }
 
-    const storedAutoDelete = window.localStorage.getItem('tasktasker-plan-auto-delete-completed')
-    if (storedAutoDelete === 'true') {
-      setAutoDeleteCompleted(true)
-    }
-
     const storedRetentionDays = window.localStorage.getItem('tasktasker-plan-retention-days')
     if (storedRetentionDays === '7' || storedRetentionDays === '30' || storedRetentionDays === '90') {
       setCompletedRetentionDays(Number(storedRetentionDays) as 7 | 30 | 90)
@@ -193,11 +187,6 @@ export default function PlanWorkspace({
     if (typeof window === 'undefined') return
     window.localStorage.setItem('tasktasker-plan-hide-completed', String(hideCompleted))
   }, [hideCompleted])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem('tasktasker-plan-auto-delete-completed', String(autoDeleteCompleted))
-  }, [autoDeleteCompleted])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -733,8 +722,6 @@ export default function PlanWorkspace({
   }, [mode, tasks])
 
   useEffect(() => {
-    if (!autoDeleteCompleted) return
-
     const now = Date.now()
     const retentionMs = completedRetentionDays * 24 * 60 * 60 * 1000
     const completedToDelete = tasks.filter((task) => {
@@ -751,7 +738,7 @@ export default function PlanWorkspace({
     completedToDelete.forEach((task) => {
       void deleteTask(task)
     })
-  }, [autoDeleteCompleted, completedRetentionDays, deleteTask, pending, tasks])
+  }, [completedRetentionDays, deleteTask, pending, tasks])
 
   const renderTaskSummaryCard = (task: TaskRecord) => {
     const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
@@ -1236,8 +1223,8 @@ export default function PlanWorkspace({
             {isWideScreen ? '[×]' : '[ ]'}
           </button>
         </div>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-3 rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-          <label className="flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-xs text-slate-200">
+          <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
             <input
               type="checkbox"
               checked={hideCompleted}
@@ -1246,25 +1233,19 @@ export default function PlanWorkspace({
             />
             Hide completed
           </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={autoDeleteCompleted}
-              onChange={(event) => setAutoDeleteCompleted(event.target.checked)}
-              className="h-3.5 w-3.5 rounded border-slate-500 bg-slate-900"
-            />
-            Delete completed after
+          <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            <span>Delete after</span>
+            <select
+              value={completedRetentionDays}
+              onChange={(event) => setCompletedRetentionDays(Number(event.target.value) as 7 | 30 | 90)}
+              className="h-5 rounded border border-slate-700 bg-slate-950 px-1.5 text-xs text-slate-100"
+              aria-label="Auto-delete completed tasks after"
+            >
+              <option value={7}>7d</option>
+              <option value={30}>30d</option>
+              <option value={90}>90d</option>
+            </select>
           </label>
-          <select
-            value={completedRetentionDays}
-            disabled={!autoDeleteCompleted}
-            onChange={(event) => setCompletedRetentionDays(Number(event.target.value) as 7 | 30 | 90)}
-            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value={7}>7 days</option>
-            <option value={30}>30 days</option>
-            <option value={90}>90 days</option>
-          </select>
         </div>
       </div>
 
