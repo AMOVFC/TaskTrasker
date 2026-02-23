@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { createClient } from '../lib/supabase/client'
 
@@ -114,6 +114,9 @@ export default function PlanWorkspace({
   const [descriptions, setDescriptions] = useState<Record<string, string>>({})
   const [activeView, setActiveView] = useState<WorkspaceView>('manual')
   const [isWideScreen, setIsWideScreen] = useState(false)
+  const [hideCompleted, setHideCompleted] = useState(false)
+  const [autoDeleteCompleted, setAutoDeleteCompleted] = useState(false)
+  const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -147,6 +150,21 @@ export default function PlanWorkspace({
     if (storedWide === 'true') {
       setIsWideScreen(true)
     }
+
+    const storedHideCompleted = window.localStorage.getItem('tasktasker-plan-hide-completed')
+    if (storedHideCompleted === 'true') {
+      setHideCompleted(true)
+    }
+
+    const storedAutoDelete = window.localStorage.getItem('tasktasker-plan-auto-delete-completed')
+    if (storedAutoDelete === 'true') {
+      setAutoDeleteCompleted(true)
+    }
+
+    const storedRetentionDays = window.localStorage.getItem('tasktasker-plan-retention-days')
+    if (storedRetentionDays === '7' || storedRetentionDays === '30' || storedRetentionDays === '90') {
+      setCompletedRetentionDays(Number(storedRetentionDays) as 7 | 30 | 90)
+    }
   }, [])
 
   useEffect(() => {
@@ -163,6 +181,21 @@ export default function PlanWorkspace({
       delete document.documentElement.dataset.planWide
     }
   }, [isWideScreen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-plan-hide-completed', String(hideCompleted))
+  }, [hideCompleted])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-plan-auto-delete-completed', String(autoDeleteCompleted))
+  }, [autoDeleteCompleted])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-plan-retention-days', String(completedRetentionDays))
+  }, [completedRetentionDays])
 
   useEffect(() => {
     if (!supabase || mode !== 'supabase') return
@@ -212,6 +245,8 @@ export default function PlanWorkspace({
     }
   }, [supabase, userId, mode])
 
+  const visibleTasks = useMemo(() => tasks.filter((task) => !hideCompleted || task.status !== 'done'), [hideCompleted, tasks])
+
   const childrenByParent = useMemo(() => {
     const map: Record<string, TaskRecord[]> = {}
     for (const task of tasks) {
@@ -231,7 +266,7 @@ export default function PlanWorkspace({
   const tasksByDueDate = useMemo(() => {
     const map: Record<string, TaskRecord[]> = {}
 
-    for (const task of tasks) {
+    for (const task of visibleTasks) {
       if (!task.due_at) continue
       const dayKey = formatDateInputValue(task.due_at)
       if (!dayKey) continue
@@ -244,7 +279,7 @@ export default function PlanWorkspace({
     }
 
     return map
-  }, [tasks])
+  }, [visibleTasks])
 
   const descendantsDone = (taskId: string): boolean => {
     const children = childrenByParent[taskId] ?? []
@@ -644,7 +679,7 @@ export default function PlanWorkspace({
     setPending((prev) => ({ ...prev, [task.id]: false }))
   }
 
-  const deleteTask = async (task: TaskRecord) => {
+  const deleteTask = useCallback(async (task: TaskRecord) => {
     setError('')
     const previous = tasks
 
@@ -666,7 +701,28 @@ export default function PlanWorkspace({
     }
 
     setPending((prev) => ({ ...prev, [task.id]: false }))
-  }
+  }, [mode, tasks])
+
+  useEffect(() => {
+    if (!autoDeleteCompleted) return
+
+    const now = Date.now()
+    const retentionMs = completedRetentionDays * 24 * 60 * 60 * 1000
+    const completedToDelete = tasks.filter((task) => {
+      if (task.status !== 'done') return false
+      if (pending[task.id]) return false
+
+      const completedAt = new Date(task.updated_at).getTime()
+      if (Number.isNaN(completedAt)) return false
+      return now - completedAt >= retentionMs
+    })
+
+    if (!completedToDelete.length) return
+
+    completedToDelete.forEach((task) => {
+      void deleteTask(task)
+    })
+  }, [autoDeleteCompleted, completedRetentionDays, deleteTask, pending, tasks])
 
   const renderTaskSummaryCard = (task: TaskRecord) => {
     const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
@@ -697,7 +753,7 @@ export default function PlanWorkspace({
       { id: 'unscheduled', label: 'No due date', tasks: [] },
     ]
 
-    for (const task of tasks) {
+    for (const task of visibleTasks) {
       if (!task.due_at) {
         buckets[4].tasks.push(task)
         continue
@@ -795,7 +851,7 @@ export default function PlanWorkspace({
   const renderStatusBoardView = () => (
     <div className="grid gap-3 lg:grid-cols-5">
       {statusOptions.map((status) => {
-        const laneTasks = orderTasks(tasks.filter((task) => task.status === status))
+        const laneTasks = orderTasks(visibleTasks.filter((task) => task.status === status))
         return (
           <section key={status} className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
             <h3 className="text-sm font-semibold capitalize text-white">{status.replace('_', ' ')}</h3>
@@ -820,7 +876,7 @@ export default function PlanWorkspace({
       done: 4,
     }
 
-    const sorted = [...tasks].sort((a, b) => {
+    const sorted = [...visibleTasks].sort((a, b) => {
       if (priority[a.status] !== priority[b.status]) return priority[a.status] - priority[b.status]
       if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
       return a.created_at.localeCompare(b.created_at)
@@ -836,14 +892,15 @@ export default function PlanWorkspace({
   }
 
   const renderWebLayoutView = () => {
-    const rootTasks = childrenByParent.root ?? []
+    const rootTasks = (childrenByParent.root ?? []).filter((task) => !hideCompleted || task.status !== 'done')
 
     return (
       <section className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
         <h3 className="text-sm font-semibold text-white">Web layout</h3>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {rootTasks.map((task) => {
-            const childCount = childrenByParent[task.id]?.length ?? 0
+            const visibleChildren = (childrenByParent[task.id] ?? []).filter((child) => !hideCompleted || child.status !== 'done')
+            const childCount = visibleChildren.length
             return (
               <article key={task.id} className="rounded-lg border border-cyan-500/30 bg-slate-950/80 p-3">
                 <div className="flex items-center justify-between">
@@ -852,7 +909,7 @@ export default function PlanWorkspace({
                 </div>
                 <p className="mt-1 text-xs text-slate-400">{childCount} linked subtasks</p>
                 <div className="mt-2 space-y-2">
-                  {(childrenByParent[task.id] ?? []).slice(0, 4).map((child) => (
+                  {visibleChildren.slice(0, 4).map((child) => (
                     <div key={child.id} className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200">
                       {child.title}
                     </div>
@@ -875,6 +932,7 @@ export default function PlanWorkspace({
     return branchTasks.map((task) => {
       const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
       const isDone = task.status === 'done'
+      if (hideCompleted && isDone) return null
 
       return (
         <div key={task.id} className="space-y-2">
@@ -895,7 +953,7 @@ export default function PlanWorkspace({
               event.preventDefault()
               onDropTask(task, 'inside')
             }}
-            className={`rounded-lg border p-3 ${isDone ? 'border-slate-700 bg-slate-900/50' : 'border-slate-700 bg-slate-950/80'}`}
+            className={`rounded-lg border ${isDone ? 'p-2' : 'p-3'} ${isDone ? 'border-slate-700 bg-slate-900/50' : 'border-slate-700 bg-slate-950/80'}`}
             style={{ marginLeft: `${depth * 20}px` }}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -963,54 +1021,58 @@ export default function PlanWorkspace({
                 </div>
               </div>
             </div>
-            <div className="mt-3 space-y-2">
-              <label className="text-xs text-slate-400">Description (demo parses dates like 2026-03-01, 03/01/2026, or &quot;due: March 1, 2026&quot;)</label>
-              <textarea
-                value={descriptions[task.id] ?? ''}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setDescriptions((prev) => ({ ...prev, [task.id]: value }))
-                  const parsedDueDate = parseDueDateFromDescription(value)
-                  const currentTask = taskById[task.id]
-                  if (!currentTask || currentTask.due_at === parsedDueDate) return
-                  setTasks((prev) =>
-                    orderTasks(
-                      prev.map((item) =>
-                        item.id === task.id ? { ...item, due_at: parsedDueDate, updated_at: new Date().toISOString() } : item
+            {!isDone ? (
+              <>
+                <div className="mt-3 space-y-2">
+                  <label className="text-xs text-slate-400">Description (demo parses dates like 2026-03-01, 03/01/2026, or &quot;due: March 1, 2026&quot;)</label>
+                  <textarea
+                    value={descriptions[task.id] ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setDescriptions((prev) => ({ ...prev, [task.id]: value }))
+                      const parsedDueDate = parseDueDateFromDescription(value)
+                      const currentTask = taskById[task.id]
+                      if (!currentTask || currentTask.due_at === parsedDueDate) return
+                      setTasks((prev) =>
+                        orderTasks(
+                          prev.map((item) =>
+                            item.id === task.id ? { ...item, due_at: parsedDueDate, updated_at: new Date().toISOString() } : item
+                          )
+                        )
                       )
-                    )
-                  )
-                }}
-                onBlur={() => {
-                  const parsedDueDate = parseDueDateFromDescription(descriptions[task.id] ?? '')
-                  void updateTaskDueAt(task.id, parsedDueDate)
-                }}
-                rows={2}
-                placeholder="Add details and include a due date to auto-assign."
-                className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-              />
-              <p className="text-xs text-slate-400">Due date: {formatDueDate(taskById[task.id]?.due_at) ?? 'None parsed yet'}</p>
-            </div>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                value={newChildTitles[task.id] ?? ''}
-                onChange={(event) => setNewChildTitles((prev) => ({ ...prev, [task.id]: event.target.value }))}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter') return
-                  event.preventDefault()
-                  void createChildTask(task)
-                }}
-                placeholder="Add subtask"
-                className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 sm:max-w-xs"
-              />
-              <button
-                type="button"
-                onClick={() => createChildTask(task)}
-                className="rounded border border-cyan-500/40 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/10"
-              >
-                Add subtask
-              </button>
-            </div>
+                    }}
+                    onBlur={() => {
+                      const parsedDueDate = parseDueDateFromDescription(descriptions[task.id] ?? '')
+                      void updateTaskDueAt(task.id, parsedDueDate)
+                    }}
+                    rows={2}
+                    placeholder="Add details and include a due date to auto-assign."
+                    className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  />
+                  <p className="text-xs text-slate-400">Due date: {formatDueDate(taskById[task.id]?.due_at) ?? 'None parsed yet'}</p>
+                </div>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    value={newChildTitles[task.id] ?? ''}
+                    onChange={(event) => setNewChildTitles((prev) => ({ ...prev, [task.id]: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return
+                      event.preventDefault()
+                      void createChildTask(task)
+                    }}
+                    placeholder="Add subtask"
+                    className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 sm:max-w-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => createChildTask(task)}
+                    className="rounded border border-cyan-500/40 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/10"
+                  >
+                    Add subtask
+                  </button>
+                </div>
+              </>
+            ) : null}
             {task.force_completed ? <p className="mt-2 text-xs text-amber-300">Completed with override.</p> : null}
             {pending[task.id] ? <p className="mt-2 text-xs text-cyan-300">Syncing…</p> : null}
           </div>
@@ -1053,7 +1115,7 @@ export default function PlanWorkspace({
 
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="relative flex items-center rounded border border-slate-700 bg-slate-950/80 text-slate-200">
           <button type="button" className="px-2 py-1 text-xs transition-colors hover:bg-slate-800 hover:text-white">
             View: {activeViewMeta?.label ?? 'Manual'}
@@ -1089,6 +1151,36 @@ export default function PlanWorkspace({
           >
             {isWideScreen ? '[×]' : '[ ]'}
           </button>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-3 rounded border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={hideCompleted}
+              onChange={(event) => setHideCompleted(event.target.checked)}
+              className="h-3.5 w-3.5 rounded border-slate-500 bg-slate-900"
+            />
+            Hide completed
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={autoDeleteCompleted}
+              onChange={(event) => setAutoDeleteCompleted(event.target.checked)}
+              className="h-3.5 w-3.5 rounded border-slate-500 bg-slate-900"
+            />
+            Delete completed after
+          </label>
+          <select
+            value={completedRetentionDays}
+            disabled={!autoDeleteCompleted}
+            onChange={(event) => setCompletedRetentionDays(Number(event.target.value) as 7 | 30 | 90)}
+            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value={7}>7 days</option>
+            <option value={30}>30 days</option>
+            <option value={90}>90 days</option>
+          </select>
         </div>
       </div>
 
