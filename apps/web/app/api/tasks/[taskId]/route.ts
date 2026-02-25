@@ -12,8 +12,22 @@ import { createClient } from '../../../../lib/supabase/server'
 
 export const runtime = 'nodejs'
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 function errorResponse(status: number, error: { code: string; message: string; details?: Record<string, unknown> }) {
-  return NextResponse.json({ error }, { status })
+  return NextResponse.json({ error: sanitizeError(error) }, { status })
+}
+
+
+function sanitizeError(error: { code: string; message: string; details?: Record<string, unknown> }) {
+  if (!isProduction) {
+    return error
+  }
+
+  return {
+    code: error.code,
+    message: error.code === 'unauthorized' ? 'Authentication is required.' : 'Something went wrong. Please try again.',
+  }
 }
 
 function extractStatus(result: unknown, fallback: number) {
@@ -66,7 +80,7 @@ export async function PATCH(
 
   if (!authResult.ok) {
     const cause = getCause(authResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks/:taskId][PATCH] auth check failed:', cause)
     }
     return errorResponse(extractStatus(authResult, 401), extractError(authResult, 'Authentication is required.'))
@@ -98,7 +112,7 @@ export async function PATCH(
 
   if (!updateResult.ok) {
     const cause = getCause(updateResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks/:taskId][PATCH] update failed:', cause)
     }
     return errorResponse(extractStatus(updateResult, 500), extractError(updateResult, 'Unable to update task.'))
@@ -117,7 +131,7 @@ export async function DELETE(
 
   if (!authResult.ok) {
     const cause = getCause(authResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks/:taskId][DELETE] auth check failed:', cause)
     }
     return errorResponse(extractStatus(authResult, 401), extractError(authResult, 'Authentication is required.'))
@@ -133,7 +147,7 @@ export async function DELETE(
 
   if (!deleteResult.ok) {
     const cause = getCause(deleteResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks/:taskId][DELETE] delete failed:', cause)
     }
     return errorResponse(extractStatus(deleteResult, 500), extractError(deleteResult, 'Unable to delete task.'))
