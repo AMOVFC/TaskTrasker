@@ -38,7 +38,9 @@ export function getSupabaseEnvOrThrow(): SupabaseEnv {
 
   if (!env) {
     throw new Error(
-      'Missing or invalid NEXT_PUBLIC_SUPABASE_URL, or missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      process.env.NODE_ENV === 'production'
+        ? 'Supabase is not configured.'
+        : 'Missing or invalid NEXT_PUBLIC_SUPABASE_URL, or missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY',
     )
   }
 
@@ -63,7 +65,7 @@ export function getAppUrlOrThrow() {
   const appUrl = getAppUrlOrNull()
 
   if (!appUrl) {
-    throw new Error('Missing APP_URL (preferred) or NEXT_PUBLIC_APP_URL')
+    throw new Error(process.env.NODE_ENV === 'production' ? 'App URL is not configured.' : 'Missing APP_URL (preferred) or NEXT_PUBLIC_APP_URL')
   }
 
   return appUrl

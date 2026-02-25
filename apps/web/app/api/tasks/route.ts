@@ -11,8 +11,22 @@ import { createClient } from '../../../lib/supabase/server'
 
 export const runtime = 'nodejs'
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 function errorResponse(status: number, error: { code: string; message: string; details?: Record<string, unknown> }) {
-  return NextResponse.json({ error }, { status })
+  return NextResponse.json({ error: sanitizeError(error) }, { status })
+}
+
+
+function sanitizeError(error: { code: string; message: string; details?: Record<string, unknown> }) {
+  if (!isProduction) {
+    return error
+  }
+
+  return {
+    code: error.code,
+    message: error.code === 'unauthorized' ? 'Authentication is required.' : 'Something went wrong. Please try again.',
+  }
 }
 
 function extractStatus(result: unknown, fallback: number) {
@@ -62,7 +76,7 @@ export async function GET() {
 
   if (!authResult.ok) {
     const cause = getCause(authResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks][GET] auth check failed:', cause)
     }
     return errorResponse(extractStatus(authResult, 401), extractError(authResult, 'Authentication is required.'))
@@ -72,7 +86,7 @@ export async function GET() {
 
   if (!result.ok) {
     const cause = getCause(result)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks][GET] fetch failed:', cause)
     }
     return errorResponse(extractStatus(result, 500), extractError(result, 'Unable to fetch tasks.'))
@@ -88,7 +102,7 @@ export async function POST(request: Request) {
 
   if (!authResult.ok) {
     const cause = getCause(authResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks][POST] auth check failed:', cause)
     }
     return errorResponse(extractStatus(authResult, 401), extractError(authResult, 'Authentication is required.'))
@@ -113,7 +127,7 @@ export async function POST(request: Request) {
 
   if (!createResult.ok) {
     const cause = getCause(createResult)
-    if (cause) {
+    if (cause && !isProduction) {
       console.error('[api/tasks][POST] create failed:', cause)
     }
     return errorResponse(extractStatus(createResult, 500), extractError(createResult, 'Unable to create task.'))
