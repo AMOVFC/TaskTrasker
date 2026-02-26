@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isProduction = process.env.NODE_ENV === 'production'
 
 async function forwardToWebhook(email: string) {
   const webhookUrl = process.env.LAUNCH_NOTIFY_WEBHOOK_URL
@@ -52,8 +53,9 @@ export async function POST(request: Request) {
     if (!result.ok && result.reason === 'missing_webhook') {
       return NextResponse.json(
         {
-          error:
-            'Launch notifications are not configured yet. Set LAUNCH_NOTIFY_WEBHOOK_URL on the server.',
+          error: isProduction
+            ? 'Notifications are temporarily unavailable. Please try again later.'
+            : 'Launch notifications are not configured yet. Set LAUNCH_NOTIFY_WEBHOOK_URL on the server.',
         },
         { status: 503 },
       )
@@ -61,16 +63,19 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       if (result.reason === 'webhook_failed') {
-        console.error('Launch notify webhook returned non-2xx response', {
-          status: result.status,
-          body: result.body,
-        })
+        if (!isProduction) {
+          console.error('Launch notify webhook returned non-2xx response', {
+            status: result.status,
+            body: result.body,
+          })
+        }
 
         if (result.status === 401 || result.status === 403) {
           return NextResponse.json(
             {
-              error:
-                'Notification service rejected the request (auth error). Check LAUNCH_NOTIFY_WEBHOOK_SECRET.',
+              error: isProduction
+                ? 'Unable to save your email right now. Please try again.'
+                : 'Notification service rejected the request (auth error). Check LAUNCH_NOTIFY_WEBHOOK_SECRET.',
             },
             { status: 502 },
           )

@@ -12,6 +12,7 @@ export const runtime = 'nodejs'
 export default async function PlanPage() {
   const hasSupabase = Boolean(getSupabaseEnvOrNull())
   const allowLocalNoSupabase = isLocalNoSupabaseModeEnabled()
+  const isProduction = process.env.NODE_ENV === 'production'
   const supabase = hasSupabase ? await createClient() : null
   const user = supabase ? (await supabase.auth.getUser()).data.user : null
 
@@ -105,11 +106,17 @@ export default async function PlanPage() {
           </section>
         ) : (
           <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="text-xl font-semibold">Enable Supabase configuration</h2>
-            <p className="text-sm text-slate-300">
-              This local development environment is missing Supabase keys. Add env vars to use the same sign-in flow as main, or set
-              <code className="mx-1 rounded bg-slate-800 px-1 py-0.5">TASKTASKER_ENABLE_LOCAL_MODE=true</code> to use local offline mode.
-            </p>
+            <h2 className="text-xl font-semibold">
+              {isProduction ? 'Plan workspace is temporarily unavailable' : 'Enable Supabase configuration'}
+            </h2>
+            {isProduction ? (
+              <p className="text-sm text-slate-300">Please try again shortly.</p>
+            ) : (
+              <p className="text-sm text-slate-300">
+                This local development environment is missing Supabase keys. Add env vars to use the same sign-in flow as main, or set
+                <code className="mx-1 rounded bg-slate-800 px-1 py-0.5">TASKTASKER_ENABLE_LOCAL_MODE=true</code> to use local offline mode.
+              </p>
+            )}
             <Link href="/login?next=/plan" className="inline-flex text-sm text-cyan-300 hover:text-cyan-200">
               Open login page
             </Link>

@@ -28,6 +28,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const hasSupabase = Boolean(getSupabaseEnvOrNull())
   const allowLocalNoSupabase = isLocalNoSupabaseModeEnabled()
   const isDevelopment = process.env.NODE_ENV === 'development'
+  const isProduction = process.env.NODE_ENV === 'production'
 
   if (!hasSupabase && allowLocalNoSupabase) {
     return (
@@ -66,9 +67,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
 
-  if (!hasSupabase && !isDevelopment) {
-    throw new Error(
-      'Missing or invalid NEXT_PUBLIC_SUPABASE_URL, or missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  if (!hasSupabase && isProduction) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
+        <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
+          <BrandLogo href="/" className="mb-6" />
+          <h1 className="text-2xl font-semibold text-slate-100">Sign in is temporarily unavailable</h1>
+          <p className="mt-2 text-sm text-slate-300">
+            We&apos;re currently unable to start the sign-in flow. Please try again shortly.
+          </p>
+          <Link href="/" className="mt-5 inline-flex text-sm text-cyan-300 hover:text-cyan-200">
+            Back to home
+          </Link>
+        </section>
+      </main>
     )
   }
 
