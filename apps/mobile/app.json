@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "TaskTrasker",
+    "slug": "tasktrasker-mobile",
+    "scheme": "tasktrasker",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.tasktrasker.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.tasktrasker.mobile",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      },
+      "webAppUrl": "https://tasktasker.com"
+    }
+  }
+}
