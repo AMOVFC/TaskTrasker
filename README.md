@@ -12,7 +12,7 @@ It supports **endlessly nested tasks**, where every item:
 - Can depend on other tasks
 - Can be reordered and moved anywhere in the tree
 
-TaskTrasker is built as a **PWA (Progressive Web App)** and is installable on Android with push notifications.
+TaskTrasker is built as a **PWA (Progressive Web App)** and now includes an **Expo Android shell app** for Play Store distribution. iOS/App Store build configuration is included but intentionally only used when requested.
 
 Website: https://tasktasker.com
 
@@ -45,6 +45,29 @@ npm run dev
 Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
+
+### Android app (Expo)
+
+```bash
+cd apps/mobile
+npm install
+npm run android
+```
+
+The Android build target is enabled by default.
+
+For cloud builds/submission:
+
+```bash
+cd apps/mobile
+npx eas build --platform android --profile production
+npx eas submit --platform android --profile production
+```
+
+### iOS/App Store provision (later, on request)
+
+The mobile scaffold already includes iOS bundle metadata in `apps/mobile/app.json`, but there is no active iOS release flow yet.
+If/when an iOS release is requested, we can add the required EAS build/submit profile and App Store Connect values at that time.
 
 ### Optional analytics & monitoring placeholders
 
@@ -92,6 +115,7 @@ tasktrasker/
 │       │   ├── page.tsx  # Coming soon landing
 │       │   └── demo/     # Interactive tree demo
 │       └── components/   # React components
+│   └── mobile/           # Expo Android shell app with iOS metadata provisioned for later
 ├── packages/
 │   └── db/               # Prisma ORM & schema
 │       └── prisma/       # Database schema
