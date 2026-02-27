@@ -124,6 +124,7 @@ export default function PlanWorkspace({
   const [isWideScreen, setIsWideScreen] = useState(false)
   const [hideCompleted, setHideCompleted] = useState(false)
   const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
+  const [showDeveloperMetadata, setShowDeveloperMetadata] = useState(false)
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -135,6 +136,10 @@ export default function PlanWorkspace({
   useEffect(() => {
     setTasks(orderTasks(initialTasks))
   }, [initialTasks])
+
+  useEffect(() => {
+    setShowDeveloperMetadata(window.location.hostname === 'dev.tasktrasker.com')
+  }, [])
 
   useEffect(() => {
     setDescriptions((prev) => {
@@ -976,7 +981,7 @@ export default function PlanWorkspace({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
-                <p className="text-xs text-slate-500">{task.id}</p>
+                {showDeveloperMetadata ? <p className="text-xs text-slate-500">{task.id}</p> : null}
                 {blockedBy ? <p className="text-xs text-amber-300">Blocked by: {blockedBy.title}</p> : null}
               </div>
 
@@ -1096,7 +1101,11 @@ export default function PlanWorkspace({
             {!isDone ? (
               <>
                 <div className="mt-3 space-y-2">
-                  <label className="text-xs text-slate-400">Description (demo parses dates like 2026-03-01, 03/01/2026, or &quot;due: March 1, 2026&quot;)</label>
+                  <label className="text-xs text-slate-400">
+                    {showDeveloperMetadata
+                      ? "Description (demo parses dates like 2026-03-01, 03/01/2026, or \"due: March 1, 2026\")"
+                      : "Description"}
+                  </label>
                   <textarea
                     value={descriptions[task.id] ?? ''}
                     onChange={(event) => {
