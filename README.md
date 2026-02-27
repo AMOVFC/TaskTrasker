@@ -163,6 +163,9 @@ It is a structured thinking tool.
 - Drag & drop reordering
 - Move tasks between parents
 
+### UI consistency conventions
+- In task action rows, keep the **Done ✓** control as the far-right button at all times (including edit mode) for predictable muscle memory.
+
 ### Workflow Status
 Each task has a status:
 

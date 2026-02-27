@@ -20,6 +20,11 @@ export type TaskRecord = {
 
 type DropPosition = 'before' | 'inside'
 type WorkspaceView = 'manual' | 'upcoming' | 'calendar' | 'status_board' | 'sorted' | 'web'
+type ActivityEntry = {
+  id: string
+  timestamp: string
+  message: string
+}
 
 const viewOptions: { id: WorkspaceView; label: string; description: string }[] = [
   {
@@ -84,6 +89,12 @@ function formatDueDate(value: string | null): string | null {
   return parsed.toLocaleDateString()
 }
 
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Unknown time'
+  return parsed.toLocaleString()
+}
+
 function formatDateInputValue(value: string | Date | null): string {
   if (!value) return ''
   const parsed = value instanceof Date ? value : new Date(value)
@@ -123,6 +134,13 @@ export default function PlanWorkspace({
   const [isWideScreen, setIsWideScreen] = useState(false)
   const [hideCompleted, setHideCompleted] = useState(false)
   const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
+  const [collapsedTasks, setCollapsedTasks] = useState<Record<string, boolean>>({})
+  const [editingTitles, setEditingTitles] = useState<Record<string, string>>({})
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([])
+
+  const appendActivity = useCallback((message: string) => {
+    setActivityLog((prev) => [{ id: crypto.randomUUID(), timestamp: new Date().toISOString(), message }, ...prev].slice(0, 100))
+  }, [])
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -192,6 +210,25 @@ export default function PlanWorkspace({
     if (typeof window === 'undefined') return
     window.localStorage.setItem('tasktasker-plan-retention-days', String(completedRetentionDays))
   }, [completedRetentionDays])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedLog = window.localStorage.getItem('tasktasker-activity-log')
+    if (!storedLog) return
+    try {
+      const parsed = JSON.parse(storedLog) as ActivityEntry[]
+      if (Array.isArray(parsed)) {
+        setActivityLog(parsed.slice(0, 100))
+      }
+    } catch {
+      setActivityLog([])
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-activity-log', JSON.stringify(activityLog))
+  }, [activityLog])
 
   useEffect(() => {
     const onMouseDown = (event: globalThis.MouseEvent) => {
@@ -395,6 +432,7 @@ export default function PlanWorkspace({
 
     if (mode === 'demo') {
       setPending((prev) => ({ ...prev, [tempId]: false }))
+      appendActivity(`Task added: ${title}`)
       return
     }
 
@@ -414,6 +452,7 @@ export default function PlanWorkspace({
     const payload = (await response.json()) as { task: TaskRecord }
     setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? payload.task : task))))
     setPending((prev) => ({ ...prev, [tempId]: false }))
+    appendActivity(`Task added: ${title}`)
   }
 
   const createChildTask = async (parentTask: TaskRecord) => {
@@ -447,6 +486,7 @@ export default function PlanWorkspace({
 
     if (mode === 'demo') {
       setPending((prev) => ({ ...prev, [tempId]: false }))
+      appendActivity(`Subtask added under "${parentTask.title}": ${title}`)
       return
     }
 
@@ -466,6 +506,7 @@ export default function PlanWorkspace({
     const payload = (await response.json()) as { task: TaskRecord }
     setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? payload.task : task))))
     setPending((prev) => ({ ...prev, [tempId]: false }))
+    appendActivity(`Subtask added under "${parentTask.title}": ${title}`)
   }
 
   const updateTaskStatus = async (task: TaskRecord, status: TaskRecord['status']) => {
@@ -477,6 +518,7 @@ export default function PlanWorkspace({
 
     if (mode === 'demo') {
       setPending((prev) => ({ ...prev, [task.id]: false }))
+      appendActivity(`Status changed for "${task.title}" to ${formatStatusLabel(status)}.`)
       return
     }
 
@@ -489,6 +531,7 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? updated : item))))
     setPending((prev) => ({ ...prev, [task.id]: false }))
+    appendActivity(`Status changed for "${updated.title}" to ${formatStatusLabel(status)}.`)
   }
 
   const completeTask = async (task: TaskRecord, force: boolean) => {
@@ -513,6 +556,7 @@ export default function PlanWorkspace({
 
     if (mode === 'demo') {
       setPending((prev) => ({ ...prev, [task.id]: false }))
+      appendActivity(`${force ? 'Force-completed' : 'Completed'} task: "${task.title}".`)
       return
     }
 
@@ -530,6 +574,57 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? updated : item))))
     setPending((prev) => ({ ...prev, [task.id]: false }))
+    appendActivity(`${force ? 'Force-completed' : 'Completed'} task: "${updated.title}".`)
+  }
+
+  const updateTaskTitle = async (task: TaskRecord, nextTitle: string) => {
+    setError('')
+    const title = nextTitle.trim()
+
+    if (!title) {
+      setError('Task title cannot be empty.')
+      return
+    }
+
+    if (title === task.title) {
+      setEditingTitles((prev) => {
+        const next = { ...prev }
+        delete next[task.id]
+        return next
+      })
+      return
+    }
+
+    const optimistic = { ...task, title, updated_at: new Date().toISOString() }
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
+    setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      setEditingTitles((prev) => {
+        const next = { ...prev }
+        delete next[task.id]
+        return next
+      })
+      appendActivity(`Task renamed: "${task.title}" → "${title}".`)
+      return
+    }
+
+    const updated = await patchTask(task, { title }, 'Could not rename task.')
+    if (!updated) {
+      setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? task : item))))
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? updated : item))))
+    setPending((prev) => ({ ...prev, [task.id]: false }))
+    setEditingTitles((prev) => {
+      const next = { ...prev }
+      delete next[task.id]
+      return next
+    })
+    appendActivity(`Task renamed: "${task.title}" → "${updated.title}".`)
   }
 
   const moveTask = async (sourceTaskId: string, targetParentId: string | null, targetSortOrder: number) => {
@@ -706,6 +801,7 @@ export default function PlanWorkspace({
 
     if (mode === 'demo') {
       setPending((prev) => ({ ...prev, [task.id]: false }))
+      appendActivity(`Task deleted: "${task.title}".`)
       return
     }
 
@@ -719,7 +815,8 @@ export default function PlanWorkspace({
     }
 
     setPending((prev) => ({ ...prev, [task.id]: false }))
-  }, [mode, tasks])
+    appendActivity(`Task deleted: "${task.title}".`)
+  }, [appendActivity, mode, tasks])
 
   useEffect(() => {
     const now = Date.now()
@@ -948,6 +1045,8 @@ export default function PlanWorkspace({
     return branchTasks.map((task) => {
       const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
       const isDone = task.status === 'done'
+      const isCollapsed = collapsedTasks[task.id] ?? false
+      const isEditing = editingTitles[task.id] !== undefined
       if (hideCompleted && isDone) return null
 
       return (
@@ -973,9 +1072,43 @@ export default function PlanWorkspace({
             style={{ marginLeft: `${depth * 20}px` }}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedTasks((prev) => ({ ...prev, [task.id]: !isCollapsed }))}
+                    className="rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-300 transition-colors hover:bg-slate-800"
+                    aria-label={isCollapsed ? 'Expand task' : 'Collapse task'}
+                  >
+                    {isCollapsed ? '▸' : '▾'}
+                  </button>
+                  {isEditing ? (
+                    <input
+                      value={editingTitles[task.id] ?? ''}
+                      onChange={(event) => setEditingTitles((prev) => ({ ...prev, [task.id]: event.target.value }))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          void updateTaskTitle(task, editingTitles[task.id] ?? '')
+                        }
+                        if (event.key === 'Escape') {
+                          setEditingTitles((prev) => {
+                            const next = { ...prev }
+                            delete next[task.id]
+                            return next
+                          })
+                        }
+                      }}
+                      className="rounded border border-cyan-500/40 bg-slate-900 px-2 py-1 text-sm text-slate-100"
+                    />
+                  ) : (
+                    <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500">{task.id}</p>
+                <p className="text-xs text-slate-500">Added: {formatTimestamp(task.created_at)}</p>
+                <p className="text-xs text-slate-500">Updated: {formatTimestamp(task.updated_at)}</p>
+                {isDone ? <p className="text-xs text-emerald-300">Completed: {formatTimestamp(task.updated_at)}</p> : null}
                 {blockedBy ? <p className="text-xs text-amber-300">Blocked by: {blockedBy.title}</p> : null}
               </div>
 
@@ -1054,6 +1187,38 @@ export default function PlanWorkspace({
                   </div>
                   </details>
                 </div>
+                {isEditing ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void updateTaskTitle(task, editingTitles[task.id] ?? '')}
+                      className="rounded border border-cyan-500/40 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-500/10"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingTitles((prev) => {
+                          const next = { ...prev }
+                          delete next[task.id]
+                          return next
+                        })
+                      }
+                      className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingTitles((prev) => ({ ...prev, [task.id]: task.title }))}
+                    className="rounded border border-cyan-500/40 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-500/10"
+                  >
+                    Edit
+                  </button>
+                )}
                 <div className="relative flex items-center rounded border border-emerald-500/40 bg-emerald-500/5 text-emerald-300" data-ui-dropdown="true">
                   <button
                     type="button"
@@ -1066,7 +1231,7 @@ export default function PlanWorkspace({
                     <summary className="list-none cursor-pointer px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
                       ▾
                     </summary>
-                  <div className="absolute left-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
+                  <div className="absolute right-0 z-20 mt-1 w-40 space-y-1 rounded border border-slate-700 bg-slate-950 p-2 shadow-lg">
                     <button
                       type="button"
                       onClick={(event) => {
@@ -1092,7 +1257,7 @@ export default function PlanWorkspace({
                 </div>
               </div>
             </div>
-            {!isDone ? (
+            {!isDone && !isCollapsed ? (
               <>
                 <div className="mt-3 space-y-2">
                   <label className="text-xs text-slate-400">Description (demo parses dates like 2026-03-01, 03/01/2026, or &quot;due: March 1, 2026&quot;)</label>
@@ -1144,10 +1309,11 @@ export default function PlanWorkspace({
                 </div>
               </>
             ) : null}
+            {isCollapsed ? <p className="mt-2 text-xs text-slate-500">Task collapsed. Expand to edit details and subtasks.</p> : null}
             {task.force_completed ? <p className="mt-2 text-xs text-amber-300">Completed with override.</p> : null}
             {pending[task.id] ? <p className="mt-2 text-xs text-cyan-300">Syncing…</p> : null}
           </div>
-          {renderTasks(task.id, depth + 1)}
+          {!isCollapsed ? renderTasks(task.id, depth + 1) : null}
         </div>
       )
     })
@@ -1222,6 +1388,37 @@ export default function PlanWorkspace({
           >
             {isWideScreen ? '[×]' : '[ ]'}
           </button>
+        </div>
+        <div className="relative" data-ui-dropdown="true">
+          <details>
+            <summary className="list-none cursor-pointer rounded border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
+              ☰ Activity log
+            </summary>
+            <div className="absolute right-0 z-30 mt-1 w-80 space-y-2 rounded border border-slate-700 bg-slate-950 p-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-100">Recent task activity</p>
+                <button
+                  type="button"
+                  onClick={() => setActivityLog([])}
+                  className="text-xs text-slate-400 transition-colors hover:text-rose-300"
+                >
+                  Clear
+                </button>
+              </div>
+              {activityLog.length ? (
+                <ul className="max-h-56 space-y-2 overflow-auto pr-1 text-xs text-slate-300">
+                  {activityLog.map((entry) => (
+                    <li key={entry.id} className="rounded border border-slate-800 bg-slate-900/60 p-2">
+                      <p>{entry.message}</p>
+                      <p className="mt-1 text-[10px] text-slate-500">{formatTimestamp(entry.timestamp)}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-slate-500">No activity yet. Actions like add/edit/complete will appear here.</p>
+              )}
+            </div>
+          </details>
         </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-xs text-slate-200">
           <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
