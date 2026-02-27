@@ -111,6 +111,7 @@ export default function PlanWorkspace({
   initialTasks: TaskRecord[]
   mode?: 'supabase' | 'demo'
 }) {
+  const showDevDetails = process.env.NODE_ENV !== 'production'
   const [supabase, setSupabase] = useState<Awaited<ReturnType<typeof createClient>> | null>(null)
   const [tasks, setTasks] = useState<TaskRecord[]>(orderTasks(initialTasks))
   const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -407,7 +408,7 @@ export default function PlanWorkspace({
     if (!response.ok) {
       setTasks((prev) => prev.filter((task) => task.id !== tempId))
       setPending((prev) => ({ ...prev, [tempId]: false }))
-      setError('Could not create task in Supabase.')
+      setError(showDevDetails ? 'Could not create task in Supabase.' : 'Could not create task right now.')
       return
     }
 
@@ -459,7 +460,7 @@ export default function PlanWorkspace({
     if (!response.ok) {
       setTasks((prev) => prev.filter((task) => task.id !== tempId))
       setPending((prev) => ({ ...prev, [tempId]: false }))
-      setError('Could not create subtask in Supabase.')
+      setError(showDevDetails ? 'Could not create subtask in Supabase.' : 'Could not create subtask right now.')
       return
     }
 
@@ -1156,7 +1157,13 @@ export default function PlanWorkspace({
   return (
     <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-white">{mode === 'demo' ? 'Demo Tasks (local placeholders)' : 'Signed-in Tasks (Supabase)'}</h2>
+        <h2 className="text-xl font-semibold text-white">
+          {mode === 'demo'
+            ? 'Demo Tasks (local placeholders)'
+            : showDevDetails
+              ? 'Signed-in Tasks (Supabase)'
+              : 'Signed-in Tasks'}
+        </h2>
         <p className="text-sm text-slate-400">
           Drag tasks before/inside each other, assign blockers, and complete with optional force override.
           {mode === 'demo' ? ' Changes stay in-memory for this browser session only.' : ''}
