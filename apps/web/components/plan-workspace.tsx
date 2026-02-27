@@ -122,6 +122,7 @@ export default function PlanWorkspace({
   initialTasks: TaskRecord[]
   mode?: 'supabase' | 'demo'
 }) {
+  const showDevDetails = process.env.NODE_ENV !== 'production'
   const [supabase, setSupabase] = useState<Awaited<ReturnType<typeof createClient>> | null>(null)
   const [tasks, setTasks] = useState<TaskRecord[]>(orderTasks(initialTasks))
   const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -141,6 +142,7 @@ export default function PlanWorkspace({
   const appendActivity = useCallback((message: string) => {
     setActivityLog((prev) => [{ id: crypto.randomUUID(), timestamp: new Date().toISOString(), message }, ...prev].slice(0, 100))
   }, [])
+  const [showDeveloperMetadata, setShowDeveloperMetadata] = useState(false)
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -152,6 +154,10 @@ export default function PlanWorkspace({
   useEffect(() => {
     setTasks(orderTasks(initialTasks))
   }, [initialTasks])
+
+  useEffect(() => {
+    setShowDeveloperMetadata(window.location.hostname === 'dev.tasktrasker.com')
+  }, [])
 
   useEffect(() => {
     setDescriptions((prev) => {
@@ -445,7 +451,7 @@ export default function PlanWorkspace({
     if (!response.ok) {
       setTasks((prev) => prev.filter((task) => task.id !== tempId))
       setPending((prev) => ({ ...prev, [tempId]: false }))
-      setError('Could not create task in Supabase.')
+      setError(showDevDetails ? 'Could not create task in Supabase.' : 'Could not create task right now.')
       return
     }
 
@@ -499,7 +505,7 @@ export default function PlanWorkspace({
     if (!response.ok) {
       setTasks((prev) => prev.filter((task) => task.id !== tempId))
       setPending((prev) => ({ ...prev, [tempId]: false }))
-      setError('Could not create subtask in Supabase.')
+      setError(showDevDetails ? 'Could not create subtask in Supabase.' : 'Could not create subtask right now.')
       return
     }
 
@@ -1109,6 +1115,9 @@ export default function PlanWorkspace({
                 <p className="text-xs text-slate-500">Added: {formatTimestamp(task.created_at)}</p>
                 <p className="text-xs text-slate-500">Updated: {formatTimestamp(task.updated_at)}</p>
                 {isDone ? <p className="text-xs text-emerald-300">Completed: {formatTimestamp(task.updated_at)}</p> : null}
+              <div>
+                <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+                {showDeveloperMetadata ? <p className="text-xs text-slate-500">{task.id}</p> : null}
                 {blockedBy ? <p className="text-xs text-amber-300">Blocked by: {blockedBy.title}</p> : null}
               </div>
 
@@ -1260,7 +1269,11 @@ export default function PlanWorkspace({
             {!isDone && !isCollapsed ? (
               <>
                 <div className="mt-3 space-y-2">
-                  <label className="text-xs text-slate-400">Description (demo parses dates like 2026-03-01, 03/01/2026, or &quot;due: March 1, 2026&quot;)</label>
+                  <label className="text-xs text-slate-400">
+                    {showDeveloperMetadata
+                      ? "Description (demo parses dates like 2026-03-01, 03/01/2026, or \"due: March 1, 2026\")"
+                      : "Description"}
+                  </label>
                   <textarea
                     value={descriptions[task.id] ?? ''}
                     onChange={(event) => {
@@ -1322,7 +1335,13 @@ export default function PlanWorkspace({
   return (
     <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-white">{mode === 'demo' ? 'Demo Tasks (local placeholders)' : 'Signed-in Tasks (Supabase)'}</h2>
+        <h2 className="text-xl font-semibold text-white">
+          {mode === 'demo'
+            ? 'Demo Tasks (local placeholders)'
+            : showDevDetails
+              ? 'Signed-in Tasks (Supabase)'
+              : 'Signed-in Tasks'}
+        </h2>
         <p className="text-sm text-slate-400">
           Drag tasks before/inside each other, assign blockers, and complete with optional force override.
           {mode === 'demo' ? ' Changes stay in-memory for this browser session only.' : ''}
