@@ -87,7 +87,7 @@ export default async function PlanPage() {
             <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
               <h2 className="text-xl font-semibold">Sign in required</h2>
               <p className="mt-2 text-sm text-slate-300">
-                Use Continue with Google to start the OAuth flow and load your user-scoped tasks.
+                Sign in with your Google account to access your task workspace.
               </p>
               <Link href="/login?next=/plan" className="mt-4 inline-flex text-sm text-cyan-300 hover:text-cyan-200">
                 Open login page
@@ -97,9 +97,9 @@ export default async function PlanPage() {
         ) : allowLocalNoSupabase ? (
           <section className="space-y-5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-5">
             <div>
-              <h2 className="text-xl font-semibold text-amber-100">Local mode (no Supabase)</h2>
+              <h2 className="text-xl font-semibold text-amber-100">Local mode</h2>
               <p className="mt-2 text-sm text-amber-50">
-                Supabase environment variables were not found, so this page is running in local-only mode for quick beta UI testing.
+                Running in local-only mode. Tasks are stored in memory and will reset when the page is refreshed.
               </p>
             </div>
             <PlanWorkspace userId="local-user" initialTasks={localTasks} mode="demo" />
@@ -128,7 +128,7 @@ export default async function PlanPage() {
             ← Back to home
           </Link>
           <Link href="/demo" className="text-sm text-slate-300 hover:text-white">
-            Open public demo mode
+            Try the demo
           </Link>
         </div>
       </div>

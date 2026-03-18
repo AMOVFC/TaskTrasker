@@ -1167,15 +1167,11 @@ export default function PlanWorkspace({
     <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold text-white">
-          {mode === 'demo'
-            ? 'Demo Tasks (local placeholders)'
-            : showDevDetails
-              ? 'Signed-in Tasks (Supabase)'
-              : 'Signed-in Tasks'}
+          {mode === 'demo' ? 'Demo Tasks' : 'My Tasks'}
         </h2>
         <p className="text-sm text-slate-400">
-          Drag tasks before/inside each other, assign blockers, and complete with optional force override.
-          {mode === 'demo' ? ' Changes stay in-memory for this browser session only.' : ''}
+          Drag tasks to reorder or nest them, set statuses and blockers, and track your progress.
+          {mode === 'demo' ? ' Changes stay in-memory for this session only.' : ''}
         </p>
       </div>
 

@@ -64,9 +64,9 @@ export default function DemoPage() {
 
           <h1 className="text-4xl font-bold mb-4">Interactive Task Tree Demo</h1>
           <p className="text-slate-300 mb-2">
-            This proof of concept demonstrates TaskTrasker&apos;s core concept: <strong>every task is a node, and every node is first-class.</strong>
+            TaskTrasker&apos;s core concept: <strong>every task is a node, and every node is first-class.</strong>
           </p>
-          <p className="text-slate-400 text-sm">Try editing tasks, adding labels, and nesting in multiple ways to explore the upcoming product behavior.</p>
+          <p className="text-slate-400 text-sm">Try editing tasks, changing statuses, and nesting subtasks to see how tree-based planning works.</p>
         </div>
 
         <div className="mb-8 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
