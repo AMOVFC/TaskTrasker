@@ -16,8 +16,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [accountDeleted, setAccountDeleted] = useState(false)
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setAccountDeleted(new URLSearchParams(window.location.search).get('accountDeleted') === '1')
+    }
+
     let ignore = false
 
     if (!getSupabaseEnvOrNull()) {
@@ -135,6 +140,12 @@ export default function Home() {
             </div>
           </div>
 
+          {accountDeleted ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              Your TaskTrasker workspace data has been deleted and you have been signed out.
+            </div>
+          ) : null}
+
           {/* CTA Section */}
           <div className="space-y-6 pt-8">
             <p className="text-slate-300">
@@ -214,6 +225,14 @@ export default function Home() {
       <footer className="border-t border-slate-700/50 bg-slate-900/50">
         <div className="max-w-6xl mx-auto px-6 py-8 text-center text-slate-400 text-sm">
           <p>tasktrasker {appVersion} • Early Proof of Concept • v1 First Full Release Coming Soon</p>
+          <div className="mt-3 flex items-center justify-center gap-4">
+            <Link href="/privacy" className="text-slate-300 hover:text-white">
+              Privacy &amp; data policy
+            </Link>
+            <Link href="/settings" className="text-slate-300 hover:text-white">
+              User settings
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
