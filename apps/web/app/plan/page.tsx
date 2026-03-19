@@ -62,11 +62,19 @@ export default async function PlanPage() {
           <BrandLogo compact />
 
           {user ? (
-            <form action={signOut}>
-              <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
-                Sign out
-              </button>
-            </form>
+            <div className="flex items-center gap-3">
+              <Link href="/settings" className="text-sm text-slate-300 hover:text-white">
+                Settings
+              </Link>
+              <Link href="/privacy" className="text-sm text-slate-300 hover:text-white">
+                Privacy
+              </Link>
+              <form action={signOut}>
+                <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+                  Sign out
+                </button>
+              </form>
+            </div>
           ) : (
             <form action={signInWithGoogle}>
               <input type="hidden" name="next" value="/plan" />
@@ -129,6 +137,9 @@ export default async function PlanPage() {
           </Link>
           <Link href="/demo" className="text-sm text-slate-300 hover:text-white">
             Open public demo mode
+          </Link>
+          <Link href="/privacy" className="text-sm text-slate-300 hover:text-white">
+            Privacy &amp; data policy
           </Link>
         </div>
       </div>
