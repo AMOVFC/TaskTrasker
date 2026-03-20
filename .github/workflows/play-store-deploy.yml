@@ -50,6 +50,7 @@ jobs:
       - name: Set EAS Project ID
         run: |
           sed -i 's/REPLACE_WITH_EAS_PROJECT_ID/${{ secrets.EXPO_PROJECT_ID }}/g' apps/mobile/app.json
+          sed -i 's/REPLACE_WITH_EAS_PROJECT_ID/${{ secrets.EXPO_PROJECT_ID }}/g' apps/mobile/eas.json
 
       - name: Build with EAS
         env:
