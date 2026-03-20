@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   deploy_play_store:
-    name: Deploy to Google Play Store (${{ github.event_name == 'pull_request' && 'internal' || 'production' }})
+    name: Deploy to Google Play Store (${{ github.event_name == 'pull_request' && 'preview' || 'production' }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -40,9 +40,11 @@ jobs:
         id: profile
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "profile=internal" >> "$GITHUB_OUTPUT"
+            echo "build_profile=preview" >> "$GITHUB_OUTPUT"
+            echo "submit_profile=internal" >> "$GITHUB_OUTPUT"
           else
-            echo "profile=production" >> "$GITHUB_OUTPUT"
+            echo "build_profile=production" >> "$GITHUB_OUTPUT"
+            echo "submit_profile=production" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set EAS Project ID
@@ -54,7 +56,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd apps/mobile
-          eas build --platform android --profile ${{ steps.profile.outputs.profile }} --non-interactive
+          eas build --platform android --profile ${{ steps.profile.outputs.build_profile }} --non-interactive
 
       - name: Submit to Google Play Store
         env:
@@ -62,6 +64,6 @@ jobs:
         run: |
           cd apps/mobile
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}' > google-play-service-account.json
-          eas submit --platform android --profile ${{ steps.profile.outputs.profile }} --non-interactive --latest \
+          eas submit --platform android --profile ${{ steps.profile.outputs.submit_profile }} --non-interactive --latest \
             --service-account-key-path ./google-play-service-account.json
           rm google-play-service-account.json
