@@ -29,42 +29,38 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/mobile/package.json
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         run: npm install
         working-directory: apps/mobile
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: Set deploy profile
-        id: profile
+      - name: Decode keystore
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "build_profile=preview" >> "$GITHUB_OUTPUT"
-            echo "submit_profile=internal" >> "$GITHUB_OUTPUT"
-          else
-            echo "build_profile=production" >> "$GITHUB_OUTPUT"
-            echo "submit_profile=production" >> "$GITHUB_OUTPUT"
-          fi
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > apps/mobile/android/tasktrasker.keystore
 
-      - name: Set EAS Project ID
-        run: |
-          sed -i 's/REPLACE_WITH_EAS_PROJECT_ID/${{ secrets.EXPO_PROJECT_ID }}/g' apps/mobile/app.json
-          sed -i 's/REPLACE_WITH_EAS_PROJECT_ID/${{ secrets.EXPO_PROJECT_ID }}/g' apps/mobile/eas.json
-
-      - name: Build with EAS
+      - name: Build APK/AAB
+        working-directory: apps/mobile
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: tasktrasker
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          cd apps/mobile
-          eas build --platform android --profile ${{ steps.profile.outputs.build_profile }} --non-interactive
+          cd android
+          ./gradlew bundleRelease
 
       - name: Submit to Google Play Store
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        working-directory: apps/mobile
         run: |
-          cd apps/mobile
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}' > google-play-service-account.json
-          eas submit --platform android --profile ${{ steps.profile.outputs.submit_profile }} --non-interactive --latest \
-            --service-account-key-path ./google-play-service-account.json
+          # Use Play Publisher plugin or Fastlane for submission
+          # For now, this is a placeholder - configure your submission method
+          ls -la android/app/build/outputs/bundle/release/
           rm google-play-service-account.json
