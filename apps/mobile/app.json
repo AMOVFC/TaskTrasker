@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TaskTrasker",
-    "slug": "tasktrasker-mobile",
+    "slug": "tasktrasker",
     "scheme": "tasktrasker",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -23,10 +23,12 @@
       "expo-router"
     ],
     "extra": {
+      "webAppUrl": "https://tasktasker.com",
+      "router": {},
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      },
-      "webAppUrl": "https://tasktasker.com"
-    }
+        "projectId": "a51bafec-ecc2-4a14-b18b-afbe1974e973"
+      }
+    },
+    "owner": "task-trasker"
   }
 }
