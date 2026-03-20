@@ -12,7 +12,7 @@ It supports **endlessly nested tasks**, where every item:
 - Can depend on other tasks
 - Can be reordered and moved anywhere in the tree
 
-TaskTrasker is built as a **PWA (Progressive Web App)** and now includes an **Expo Android shell app** for Play Store distribution. iOS/App Store build configuration is included but intentionally only used when requested.
+TaskTrasker is built as a **PWA (Progressive Web App)** and includes an **Android native app** for Play Store distribution. iOS/App Store build configuration is included but intentionally only used when requested.
 
 Website: https://tasktasker.com
 
@@ -46,7 +46,7 @@ Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
 
-### Android app (Expo)
+### Android app
 
 ```bash
 cd apps/mobile
@@ -56,13 +56,24 @@ npm run android
 
 The Android build target is enabled by default.
 
-For cloud builds/submission:
+**Build Pipeline:** Android builds are handled via GitHub Actions with the native Android SDK (not Expo Cloud Build), enabling unlimited free builds. The workflow automatically builds and submits to Play Store on push to `main` (production) and pull requests (internal testing track).
 
+To build locally with Android SDK:
 ```bash
 cd apps/mobile
-npx eas build --platform android --profile production
-npx eas submit --platform android --profile production
+npm run build:android  # Requires Android SDK setup
 ```
+
+### Migration from Expo Cloud Build to Android SDK
+
+TaskTrasker is migrating from Expo's cloud build service to a native Android SDK build pipeline for scalability:
+
+- **Why:** Expo free tier limits to 30 builds/month, which becomes restrictive during active development
+- **What:** GitHub Actions + Android SDK provides unlimited free builds and full control
+- **Timeline:** Migration will complete incrementally; current state uses Expo, roadmap includes full Android SDK adoption
+- **Effort:** Medium complexity — essentially replacing the cloud build button with a local Gradle build on CI/CD
+
+The change is transparent to development — local `npm run android` continues to work the same way.
 
 ### iOS/App Store provision (later, on request)
 
