@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,7 +14,7 @@ permissions:
 
 jobs:
   deploy_play_store:
-    name: Deploy to Google Play Store
+    name: Deploy to Google Play Store (${{ github.event_name == 'pull_request' && 'internal' || 'production' }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -33,12 +36,21 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Set deploy profile
+        id: profile
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "profile=internal" >> "$GITHUB_OUTPUT"
+          else
+            echo "profile=production" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build with EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd apps/mobile
-          eas build --platform android --profile production --non-interactive
+          eas build --platform android --profile ${{ steps.profile.outputs.profile }} --non-interactive
 
       - name: Submit to Google Play Store
         env:
@@ -46,6 +58,6 @@ jobs:
         run: |
           cd apps/mobile
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}' > google-play-service-account.json
-          eas submit --platform android --profile production --non-interactive --latest \
+          eas submit --platform android --profile ${{ steps.profile.outputs.profile }} --non-interactive --latest \
             --service-account-key-path ./google-play-service-account.json
           rm google-play-service-account.json
