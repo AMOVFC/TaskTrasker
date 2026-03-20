@@ -13,7 +13,7 @@ jobs:
   deploy_play_store:
     name: Deploy to Google Play Store
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout code
@@ -26,23 +26,26 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/mobile/package.json
 
+      - name: Install dependencies
+        run: npm install
+        working-directory: apps/mobile
+
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
       - name: Build with EAS
         env:
-          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd apps/mobile
-          eas build --platform android --non-interactive
+          eas build --platform android --profile production --non-interactive
 
       - name: Submit to Google Play Store
         env:
-          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd apps/mobile
-          # Store the service account JSON to a file for submission
-          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > google-play-service-account.json
-          eas submit --platform android --non-interactive --latest
+          echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}' > google-play-service-account.json
+          eas submit --platform android --profile production --non-interactive --latest \
+            --service-account-key-path ./google-play-service-account.json
           rm google-play-service-account.json
