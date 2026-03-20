@@ -1,5 +1,5 @@
 {
-  "projectId": "REPLACE_WITH_EAS_PROJECT_ID",
+  "projectId": "tasktrasker",
   "cli": {
     "version": ">= 10.0.0",
     "appVersionSource": "remote"
