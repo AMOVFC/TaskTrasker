@@ -1,0 +1,59 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build and submit to Google Play Store"
+  lane :deploy do |options|
+    # Determine track (internal, alpha, beta, production)
+    track = options[:track] || ENV["FASTLANE_TRACK"] || "internal"
+
+    # Build the app
+    build_android_app(
+      task: "bundleRelease",
+      project_dir: "android/",
+      gradle_path: "android/gradlew"
+    )
+
+    # Upload to Play Store
+    upload_to_play_store(
+      track: track,
+      release_status: "draft",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      json_key: ENV["GOOGLE_PLAY_KEY_FILE"],
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+
+    UI.success("🎉 Successfully uploaded to Play Store (#{track})")
+  end
+
+  desc "Build release APK"
+  lane :build_apk do
+    build_android_app(
+      task: "assembleRelease",
+      project_dir: "android/",
+      gradle_path: "android/gradlew",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"]
+      }
+    )
+  end
+
+  desc "Build release AAB (bundle)"
+  lane :build_aab do
+    build_android_app(
+      task: "bundleRelease",
+      project_dir: "android/",
+      gradle_path: "android/gradlew",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"]
+      }
+    )
+  end
+end
