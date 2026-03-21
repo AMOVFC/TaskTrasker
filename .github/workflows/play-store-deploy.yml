@@ -56,11 +56,27 @@ jobs:
           cd android
           ./gradlew bundleRelease
 
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: apps/mobile
+
+      - name: Install Fastlane
+        working-directory: apps/mobile
+        run: bundle exec fastlane --version
+
       - name: Submit to Google Play Store
         working-directory: apps/mobile
+        env:
+          GOOGLE_PLAY_KEY_FILE: google-play-service-account.json
+          KEYSTORE_PATH: android/tasktrasker.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: tasktrasker
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          FASTLANE_TRACK: ${{ github.event_name == 'pull_request' && 'internal' || 'production' }}
         run: |
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}' > google-play-service-account.json
-          # Use Play Publisher plugin or Fastlane for submission
-          # For now, this is a placeholder - configure your submission method
-          ls -la android/app/build/outputs/bundle/release/
+          bundle exec fastlane android deploy
           rm google-play-service-account.json
