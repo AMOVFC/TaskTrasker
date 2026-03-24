@@ -161,25 +161,18 @@ android {
     }
 }
 
-tasks.register('renameBundle') {
-    doLast {
-        def bundleDir = file('build/outputs/bundle/release')
-        def files = bundleDir.listFiles { file -> file.name.endsWith('.aab') } as List
-        if (files && files.size() > 0) {
-            def defaultAab = files[0]
-            def unixTime = System.currentTimeMillis() / 1000 as Long
-            def versionName = android.defaultConfig.versionName
-            def newName = "TaskTrasker-${versionName}-${unixTime}.aab"
-            def newFile = new File(bundleDir, newName)
-            defaultAab.renameTo(newFile)
-            println("Renamed bundle to: $newName")
+android.applicationVariants.all { variant ->
+    if (variant.buildType.name == 'release') {
+        variant.outputs.all { output ->
+            if (output.hasProperty('bundleFile')) {
+                def unixTime = System.currentTimeMillis() / 1000 as Long
+                def versionName = android.defaultConfig.versionName
+                output.bundleFile = new File(
+                    output.bundleFile.parentFile,
+                    "TaskTrasker-${versionName}-${unixTime}.aab"
+                )
+            }
         }
-    }
-}
-
-tasks.whenTaskAdded { task ->
-    if (task.name == 'bundleRelease') {
-        task.finalizedBy 'renameBundle'
     }
 }
 

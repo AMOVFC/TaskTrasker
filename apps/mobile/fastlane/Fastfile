@@ -12,12 +12,18 @@ platform :android do
       project_dir: "android/"
     )
 
-    # Find the generated AAB file (supports new naming with timestamp)
+    # Find the generated AAB file (try custom name first, then default)
     aab_file = Dir.glob("android/app/build/outputs/bundle/release/TaskTrasker-*.aab").first
+    aab_file = Dir.glob("android/app/build/outputs/bundle/release/*.aab").first unless aab_file
+
     unless aab_file
       UI.error("AAB file not found in android/app/build/outputs/bundle/release/")
+      UI.error("Available files:")
+      Dir.glob("android/app/build/outputs/bundle/release/**/*").each { |f| UI.error("  #{f}") }
       exit(1)
     end
+
+    UI.message("Found AAB file: #{aab_file}")
 
     # Upload to Play Store
     upload_to_play_store(
