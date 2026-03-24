@@ -177,8 +177,10 @@ tasks.register('renameBundle') {
     }
 }
 
-tasks.named('bundleRelease').configure {
-    finalizedBy 'renameBundle'
+tasks.whenTaskAdded { task ->
+    if (task.name == 'bundleRelease') {
+        task.finalizedBy 'renameBundle'
+    }
 }
 
 dependencies {
