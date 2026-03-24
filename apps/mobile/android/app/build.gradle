@@ -161,6 +161,26 @@ android {
     }
 }
 
+tasks.register('renameBundle') {
+    doLast {
+        def bundleDir = file('build/outputs/bundle/release')
+        def files = bundleDir.listFiles { file -> file.name.endsWith('.aab') } as List
+        if (files && files.size() > 0) {
+            def defaultAab = files[0]
+            def unixTime = System.currentTimeMillis() / 1000 as Long
+            def versionName = android.defaultConfig.versionName
+            def newName = "TaskTrasker-${versionName}-${unixTime}.aab"
+            def newFile = new File(bundleDir, newName)
+            defaultAab.renameTo(newFile)
+            println("Renamed bundle to: $newName")
+        }
+    }
+}
+
+tasks.named('bundleRelease').configure {
+    finalizedBy 'renameBundle'
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
