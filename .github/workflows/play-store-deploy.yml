@@ -54,7 +54,24 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           cd android
-          ./gradlew bundleRelease
+          ./gradlew bundleRelease assembleRelease
+
+      - name: Package APK for manual deployment
+        working-directory: apps/mobile
+        run: |
+          mkdir -p apk-release
+          cp android/app/build/outputs/apk/release/*.apk apk-release/
+          cd apk-release
+          zip -r ../tasktrasker-apk-${{ github.sha }}.zip .
+          cd ..
+          ls -lh tasktrasker-apk-*.zip
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasktrasker-apk-release
+          path: apps/mobile/tasktrasker-apk-${{ github.sha }}.zip
+          if-no-files-found: warn
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
