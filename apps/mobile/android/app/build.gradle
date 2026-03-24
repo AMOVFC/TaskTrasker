@@ -161,20 +161,6 @@ android {
     }
 }
 
-android.applicationVariants.all { variant ->
-    if (variant.buildType.name == 'release') {
-        variant.outputs.all { output ->
-            if (output.hasProperty('bundleFile')) {
-                def unixTime = System.currentTimeMillis() / 1000 as Long
-                def versionName = android.defaultConfig.versionName
-                output.bundleFile = new File(
-                    output.bundleFile.parentFile,
-                    "TaskTrasker-${versionName}-${unixTime}.aab"
-                )
-            }
-        }
-    }
-}
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin

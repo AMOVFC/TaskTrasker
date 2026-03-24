@@ -63,7 +63,15 @@ jobs:
         working-directory: apps/mobile
         run: |
           mkdir -p aab-release
-          cp android/app/build/outputs/bundle/release/TaskTrasker-*.aab aab-release/
+          # Find the AAB file (could be named app-release.aab or TaskTrasker-*.aab)
+          AAB_FILE=$(find android/app/build/outputs/bundle/release -name "*.aab" -type f | head -1)
+          if [ -z "$AAB_FILE" ]; then
+            echo "Error: No AAB file found in android/app/build/outputs/bundle/release/"
+            find android/app/build/outputs/bundle/release -type f
+            exit 1
+          fi
+          echo "Found AAB: $AAB_FILE"
+          cp "$AAB_FILE" aab-release/
           cd aab-release
           zip -r ../tasktrasker-aab-${{ github.sha }}.zip .
           cd ..
