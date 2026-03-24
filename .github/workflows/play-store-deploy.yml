@@ -38,6 +38,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Gradle cache
+        uses: gradle/gradle-build-action@v3
+
       - name: Install dependencies
         run: npm install
         working-directory: apps/mobile
@@ -46,7 +49,7 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > apps/mobile/android/tasktrasker.keystore
 
-      - name: Build APK/AAB
+      - name: Build AAB
         working-directory: apps/mobile
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -54,7 +57,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           cd android
-          ./gradlew bundleRelease assembleRelease
+          ./gradlew bundleRelease -x assembleRelease
 
       - name: Package AAB for artifact storage
         working-directory: apps/mobile
@@ -72,23 +75,6 @@ jobs:
           name: tasktrasker-aab-release
           path: apps/mobile/tasktrasker-aab-${{ github.sha }}.zip
           if-no-files-found: error
-
-      - name: Package APK for manual deployment
-        working-directory: apps/mobile
-        run: |
-          mkdir -p apk-release
-          cp android/app/build/outputs/apk/release/*.apk apk-release/
-          cd apk-release
-          zip -r ../tasktrasker-apk-${{ github.sha }}.zip .
-          cd ..
-          ls -lh tasktrasker-apk-*.zip
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tasktrasker-apk-release
-          path: apps/mobile/tasktrasker-apk-${{ github.sha }}.zip
-          if-no-files-found: warn
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
