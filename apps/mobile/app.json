@@ -23,7 +23,7 @@
       "expo-router"
     ],
     "extra": {
-      "webAppUrl": "https://tasktasker.com",
+      "webAppUrl": "https://tasktrasker.com",
       "router": {},
       "eas": {
         "projectId": "a51bafec-ecc2-4a14-b18b-afbe1974e973"
