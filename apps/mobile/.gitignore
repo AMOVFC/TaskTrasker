@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.expo/
+dist/
+build/
+
+# Keystore and signing (use GitHub Secrets)
+*.keystore
+keystore.base64
+signing.properties
+google-play-service-account.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Fastlane
+fastlane/report.json
+fastlane/Preview.html
+fastlane/.env
+
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/build/
+
+# iOS
+ios/Pods/
+ios/Podfile.lock
