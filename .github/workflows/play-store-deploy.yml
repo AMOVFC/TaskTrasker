@@ -56,6 +56,23 @@ jobs:
           cd android
           ./gradlew bundleRelease assembleRelease
 
+      - name: Package AAB for artifact storage
+        working-directory: apps/mobile
+        run: |
+          mkdir -p aab-release
+          cp android/app/build/outputs/bundle/release/app-release.aab aab-release/
+          cd aab-release
+          zip -r ../tasktrasker-aab-${{ github.sha }}.zip .
+          cd ..
+          ls -lh tasktrasker-aab-*.zip
+
+      - name: Upload AAB artifact (for revert capability)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasktrasker-aab-release
+          path: apps/mobile/tasktrasker-aab-${{ github.sha }}.zip
+          if-no-files-found: error
+
       - name: Package APK for manual deployment
         working-directory: apps/mobile
         run: |
