@@ -1,8 +1,8 @@
-# TaskTrasker Mobile (Expo)
+# TaskTrasker Mobile
 
-This folder contains the **Android-first Expo shell app** for TaskTrasker.
+This folder contains the **Expo-based Android app** for TaskTrasker, built with native Android SDK + Gradle for Play Store distribution.
 
-The app currently wraps the web app (`https://tasktasker.com`) in a React Native `WebView` so you can test and ship an Android app without rewriting the product UI.
+The app wraps the web app (`https://tasktasker.com`) in a React Native `WebView`, enabling a full-featured native experience without rewriting the product UI.
 
 ## Prerequisites
 
@@ -55,16 +55,63 @@ npx expo start --clear
 npm run typecheck
 ```
 
-## 5) Build for Android (cloud)
+## 5) Build for Android (local)
+
+Build a signed release APK:
 
 ```bash
-npx eas build --platform android --profile production
+cd android
+./gradlew assembleRelease
+# Output: app/build/outputs/apk/release/app-release.apk
 ```
 
-## 6) Submit to Play Store
+Or build an Android App Bundle (AAB) for Play Store:
 
 ```bash
-npx eas submit --platform android --profile production
+cd android
+./gradlew bundleRelease
+# Output: app/build/outputs/bundle/release/app-release.aab
+```
+
+Set these environment variables before building:
+```bash
+export KEYSTORE_PASSWORD=tasktrasker123
+export KEY_ALIAS=tasktrasker
+export KEY_PASSWORD=tasktrasker123
+```
+
+## 6) Play Store Submission (via GitHub Actions)
+
+**Automated workflow:** Push to `main` or create a PR → GitHub Actions automatically:
+1. Builds the signed AAB with Gradle
+2. Submits to Google Play Store via Fastlane
+   - PRs → Internal Testing track
+   - main → Production track
+
+**Manual local submission:**
+
+```bash
+bundle install
+bundle exec fastlane android deploy --track internal
+```
+
+Requires `GOOGLE_PLAY_SERVICE_ACCOUNT` JSON file in working directory.
+
+---
+
+## Secrets & Configuration
+
+**GitHub Secrets** (for automated CI/CD):
+- `KEYSTORE_BASE64` — base64-encoded signing keystore
+- `KEYSTORE_PASSWORD` — keystore password
+- `GOOGLE_PLAY_SERVICE_ACCOUNT` — Play Store service account JSON
+
+**Local config** (`.env` file, never commit):
+```bash
+KEYSTORE_PASSWORD=tasktrasker123
+KEY_ALIAS=tasktrasker
+KEY_PASSWORD=tasktrasker123
+GOOGLE_PLAY_KEY_FILE=google-play-service-account.json
 ```
 
 ---
