@@ -46,34 +46,52 @@ Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
 
-### Android app
+### Android App & Play Store Deployment
 
 ```bash
 cd apps/mobile
 npm install
-npm run android
+npm run android  # Local Expo development build
 ```
 
-The Android build target is enabled by default.
+**Build Pipeline:** Android builds use **native Android SDK + Gradle** via GitHub Actions (not Expo Cloud Build). This enables **unlimited free builds** and full control over the release process.
 
-**Build Pipeline:** Android builds are handled via GitHub Actions with the native Android SDK (not Expo Cloud Build), enabling unlimited free builds. The workflow automatically builds and submits to Play Store on push to `main` (production) and pull requests (internal testing track).
+#### How the automated pipeline works:
 
-To build locally with Android SDK:
+When you push to `main` or create a PR:
+
+1. **GitHub Actions** checks out code and decodes secrets
+2. **Gradle** builds the signed AAB (Android App Bundle) locally
+3. **Fastlane** submits to Google Play Store:
+   - **PRs** → Internal Testing track (for QA)
+   - **main** → Production track (for users)
+
+#### To build locally:
+
+```bash
+cd apps/mobile/android
+./gradlew bundleRelease  # Builds app-release.aab
+```
+
+#### Local Fastlane testing (optional):
+
 ```bash
 cd apps/mobile
-npm run build:android  # Requires Android SDK setup
+bundle install
+export KEYSTORE_PASSWORD=tasktrasker123
+export KEY_ALIAS=tasktrasker
+export GOOGLE_PLAY_KEY_FILE=./google-play-service-account.json
+bundle exec fastlane android deploy --track internal
 ```
 
-### Migration from Expo Cloud Build to Android SDK
+#### Setup requirements:
 
-TaskTrasker is migrating from Expo's cloud build service to a native Android SDK build pipeline for scalability:
+Add these GitHub repository secrets:
+- `KEYSTORE_BASE64` — base64-encoded keystore (generated locally, never in git)
+- `KEYSTORE_PASSWORD` — keystore password
+- `GOOGLE_PLAY_SERVICE_ACCOUNT` — Google Play service account JSON
 
-- **Why:** Expo free tier limits to 30 builds/month, which becomes restrictive during active development
-- **What:** GitHub Actions + Android SDK provides unlimited free builds and full control
-- **Timeline:** Migration will complete incrementally; current state uses Expo, roadmap includes full Android SDK adoption
-- **Effort:** Medium complexity — essentially replacing the cloud build button with a local Gradle build on CI/CD
-
-The change is transparent to development — local `npm run android` continues to work the same way.
+See `.github/workflows/play-store-deploy.yml` for the complete workflow.
 
 ### iOS/App Store provision (later, on request)
 
@@ -477,8 +495,7 @@ When configuring the OAuth Web Client in Google Cloud Console, include:
 2. Authorized JavaScript origin: `https://<project-ref>.supabase.co`
 3. Local app origin (dev): `http://localhost:3000`
 
-### Production readiness docs
+### Setup & onboarding docs
 
-- `docs/production-readiness-checklist.md`
-- `docs/supabase-next-steps-checklist.md`
-- `docs/supabase-auth-sync-plan.md`
+- `docs/supabase-auth-sync-plan.md` — Supabase authentication + sync architecture
+- `docs/supabase-next-steps-checklist.md` — Step-by-step Supabase + Google OAuth setup
