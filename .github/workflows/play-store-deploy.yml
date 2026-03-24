@@ -63,7 +63,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           mkdir -p aab-release
-          cp android/app/build/outputs/bundle/release/app-release.aab aab-release/
+          cp android/app/build/outputs/bundle/release/TaskTrasker-*.aab aab-release/
           cd aab-release
           zip -r ../tasktrasker-aab-${{ github.sha }}.zip .
           cd ..
