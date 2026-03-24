@@ -12,12 +12,19 @@ platform :android do
       project_dir: "android/"
     )
 
+    # Find the generated AAB file (supports new naming with timestamp)
+    aab_file = Dir.glob("android/app/build/outputs/bundle/release/TaskTrasker-*.aab").first
+    unless aab_file
+      UI.error("AAB file not found in android/app/build/outputs/bundle/release/")
+      exit(1)
+    end
+
     # Upload to Play Store
     upload_to_play_store(
       package_name: "com.tasktrasker.mobile",
       track: track,
       release_status: "draft",
-      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      aab: aab_file,
       json_key: ENV["GOOGLE_PLAY_KEY_FILE"],
       skip_upload_metadata: true,
       skip_upload_images: true,
