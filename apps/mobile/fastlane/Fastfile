@@ -6,20 +6,18 @@ platform :android do
     # Determine track (internal, alpha, beta, production)
     track = options[:track] || ENV["FASTLANE_TRACK"] || "internal"
 
-    # Build the app
+    # Build the app - build_android_app returns the output path in the lane_context
     build_android_app(
       task: "bundleRelease",
       project_dir: "android/"
     )
 
-    # Find the generated AAB file (try custom name first, then default)
-    aab_file = Dir.glob("android/app/build/outputs/bundle/release/TaskTrasker-*.aab").first
-    aab_file = Dir.glob("android/app/build/outputs/bundle/release/*.aab").first unless aab_file
+    # Get the AAB file path from the gradle build output
+    aab_file = lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
 
-    unless aab_file
-      UI.error("AAB file not found in android/app/build/outputs/bundle/release/")
-      UI.error("Available files:")
-      Dir.glob("android/app/build/outputs/bundle/release/**/*").each { |f| UI.error("  #{f}") }
+    unless aab_file && File.exist?(aab_file)
+      UI.error("AAB file not found")
+      UI.error("Expected: #{aab_file}")
       exit(1)
     end
 
