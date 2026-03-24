@@ -121,6 +121,16 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
+    bundle {
+        language.enableSplit = false
+    }
+    android.applicationVariants.all { variant ->
+        variant.outputs.all {
+            def unixTime = System.currentTimeMillis() / 1000 as Long
+            def versionName = android.defaultConfig.versionName
+            outputFileName = "TaskTrasker-${versionName}-${unixTime}.${outputFileName.tokenize('.').last()}"
+        }
+    }
     packagingOptions {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
