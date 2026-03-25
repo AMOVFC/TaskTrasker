@@ -3,7 +3,7 @@
     "name": "TaskTrasker",
     "slug": "tasktrasker",
     "scheme": "tasktrasker",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
