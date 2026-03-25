@@ -6,29 +6,18 @@ platform :android do
     # Determine track (internal, alpha, beta, production)
     track = options[:track] || ENV["FASTLANE_TRACK"] || "internal"
 
-    # Build the app - build_android_app returns the output path in the lane_context
+    # Build the app
     build_android_app(
       task: "bundleRelease",
-      project_dir: "android/"
+      project_dir: "android/",
+      gradle_path: "android/gradlew"
     )
-
-    # Get the AAB file path from the gradle build output
-    aab_file = lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
-
-    unless aab_file && File.exist?(aab_file)
-      UI.error("AAB file not found")
-      UI.error("Expected: #{aab_file}")
-      exit(1)
-    end
-
-    UI.message("Found AAB file: #{aab_file}")
 
     # Upload to Play Store
     upload_to_play_store(
-      package_name: "com.tasktrasker.mobile",
       track: track,
       release_status: "draft",
-      aab: aab_file,
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
       json_key: ENV["GOOGLE_PLAY_KEY_FILE"],
       skip_upload_metadata: true,
       skip_upload_images: true,
@@ -43,6 +32,7 @@ platform :android do
     build_android_app(
       task: "assembleRelease",
       project_dir: "android/",
+      gradle_path: "android/gradlew",
       properties: {
         "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
         "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
@@ -57,6 +47,7 @@ platform :android do
     build_android_app(
       task: "bundleRelease",
       project_dir: "android/",
+      gradle_path: "android/gradlew",
       properties: {
         "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
         "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
