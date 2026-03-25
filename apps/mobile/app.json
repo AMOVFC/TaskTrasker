@@ -11,6 +11,7 @@
     ],
     "android": {
       "package": "com.tasktrasker.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0f172a"
       }

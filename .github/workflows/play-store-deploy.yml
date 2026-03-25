@@ -45,6 +45,28 @@ jobs:
         run: npm install
         working-directory: apps/mobile
 
+      - name: Set dynamic version code
+        working-directory: apps/mobile
+        run: |
+          # Different version code ranges for internal (dev) vs production
+          # Internal: 1000-1999, Production: 2000-2999
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            VERSION_CODE=$((1000 + ${{ github.run_number }}))
+            echo "Building for INTERNAL track (dev) with versionCode: $VERSION_CODE"
+          else
+            VERSION_CODE=$((2000 + ${{ github.run_number }}))
+            echo "Building for PRODUCTION track with versionCode: $VERSION_CODE"
+          fi
+
+          # Update app.json with the new versionCode
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            appJson.expo.android.versionCode = $VERSION_CODE;
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
+            console.log('Updated versionCode to: ' + $VERSION_CODE);
+          "
+
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > apps/mobile/android/tasktrasker.keystore
