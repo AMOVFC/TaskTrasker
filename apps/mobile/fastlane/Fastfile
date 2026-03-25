@@ -10,7 +10,7 @@ platform :android do
     build_android_app(
       task: "bundleRelease",
       project_dir: "android/",
-      gradle_path: "android/gradlew"
+      gradle_path: "gradlew"
     )
 
     # Upload to Play Store
@@ -32,7 +32,7 @@ platform :android do
     build_android_app(
       task: "assembleRelease",
       project_dir: "android/",
-      gradle_path: "android/gradlew",
+      gradle_path: "gradlew",
       properties: {
         "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
         "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
@@ -47,7 +47,7 @@ platform :android do
     build_android_app(
       task: "bundleRelease",
       project_dir: "android/",
-      gradle_path: "android/gradlew",
+      gradle_path: "gradlew",
       properties: {
         "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
         "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
