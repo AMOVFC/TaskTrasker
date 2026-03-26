@@ -1,8 +1,14 @@
 import Script from 'next/script'
+import { GoogleAnalyticsPageTracker } from './google-analytics-page-tracker'
 
-const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
-const gtmContainerId = process.env.NEXT_PUBLIC_GTM_CONTAINER_ID
-const clarityProjectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID
+function getOptionalEnv(value: string | undefined) {
+  const trimmedValue = value?.trim()
+  return trimmedValue ? trimmedValue : null
+}
+
+const gaMeasurementId = getOptionalEnv(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID)
+const gtmContainerId = getOptionalEnv(process.env.NEXT_PUBLIC_GTM_CONTAINER_ID)
+const clarityProjectId = getOptionalEnv(process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID)
 
 export function MonitoringScripts() {
   return (
@@ -37,8 +43,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${gaMeasurementId}');`}
+gtag('config', '${gaMeasurementId}', { send_page_view: false });`}
           </Script>
+          <GoogleAnalyticsPageTracker measurementId={gaMeasurementId} />
         </>
       ) : null}
 
