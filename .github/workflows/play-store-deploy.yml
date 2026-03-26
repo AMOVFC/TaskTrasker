@@ -55,14 +55,18 @@ jobs:
             echo "Building for PRODUCTION track with versionCode: $VERSION_CODE"
           fi
 
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
           # Update app.json with the new versionCode
-          node -e "
+          node << 'EOF'
             const fs = require('fs');
+            const versionCode = parseInt(process.env.VERSION_CODE);
             const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
-            appJson.expo.android.versionCode = $VERSION_CODE;
-            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
-            console.log('Updated versionCode to: ' + $VERSION_CODE);
-          "
+            appJson.expo.android.versionCode = versionCode;
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2) + '\n');
+            console.log(`Updated versionCode to: ${versionCode}`);
+            console.log('Updated app.json:', JSON.stringify(appJson.expo.android, null, 2));
+          EOF
 
       - name: Decode keystore
         run: |
