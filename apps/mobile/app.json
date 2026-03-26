@@ -4,6 +4,7 @@
     "slug": "tasktrasker",
     "scheme": "tasktrasker",
     "version": "0.1.1",
+    "projectId": "a51bafec-ecc2-4a14-b18b-afbe1974e973",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
@@ -24,10 +25,7 @@
     ],
     "extra": {
       "webAppUrl": "https://tasktasker.com",
-      "router": {},
-      "eas": {
-        "projectId": "a51bafec-ecc2-4a14-b18b-afbe1974e973"
-      }
+      "router": {}
     },
     "owner": "task-trasker"
   }
