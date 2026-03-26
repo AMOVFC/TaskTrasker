@@ -19,6 +19,7 @@ platform :android do
       track: track,
       release_status: "draft",
       aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
       json_key: ENV["GOOGLE_PLAY_KEY_FILE"],
       skip_upload_metadata: true,
       skip_upload_images: true,
