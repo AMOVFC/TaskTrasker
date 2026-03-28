@@ -1,6 +1,6 @@
 {
   "name": "tasktrasker-mobile",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/react": "~19.0.10",
     "babel-preset-expo": "~13.1.0",
+    "fastlane": "^0.0.9",
     "typescript": "~5.8.2"
   }
 }

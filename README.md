@@ -12,7 +12,7 @@ It supports **endlessly nested tasks**, where every item:
 - Can depend on other tasks
 - Can be reordered and moved anywhere in the tree
 
-TaskTrasker is built as a **PWA (Progressive Web App)** and now includes an **Expo Android shell app** for Play Store distribution. iOS/App Store build configuration is included but intentionally only used when requested.
+TaskTrasker is built as a **PWA (Progressive Web App)** and includes an **Android native app** for Play Store distribution. iOS/App Store build configuration is included but intentionally only used when requested.
 
 Website: https://tasktasker.com
 
@@ -46,23 +46,52 @@ Visit:
 - **Home (Coming Soon)**: http://localhost:3000
 - **Demo (Proof of Concept)**: http://localhost:3000/demo
 
-### Android app (Expo)
+### Android App & Play Store Deployment
 
 ```bash
 cd apps/mobile
 npm install
-npm run android
+npm run android  # Local Expo development build
 ```
 
-The Android build target is enabled by default.
+**Build Pipeline:** Android builds use **native Android SDK + Gradle** via GitHub Actions (not Expo Cloud Build). This enables **unlimited free builds** and full control over the release process.
 
-For cloud builds/submission:
+#### How the automated pipeline works:
+
+When you push to `main` or create a PR:
+
+1. **GitHub Actions** checks out code and decodes secrets
+2. **Gradle** builds the signed AAB (Android App Bundle) locally
+3. **Fastlane** submits to Google Play Store:
+   - **PRs** → Internal Testing track (for QA)
+   - **main** → Production track (for users)
+
+#### To build locally:
+
+```bash
+cd apps/mobile/android
+./gradlew bundleRelease  # Builds app-release.aab
+```
+
+#### Local Fastlane testing (optional):
 
 ```bash
 cd apps/mobile
-npx eas build --platform android --profile production
-npx eas submit --platform android --profile production
+bundle install
+export KEYSTORE_PASSWORD=tasktrasker123
+export KEY_ALIAS=tasktrasker
+export GOOGLE_PLAY_KEY_FILE=./google-play-service-account.json
+bundle exec fastlane android deploy --track internal
 ```
+
+#### Setup requirements:
+
+Add these GitHub repository secrets:
+- `KEYSTORE_BASE64` — base64-encoded keystore (generated locally, never in git)
+- `KEYSTORE_PASSWORD` — keystore password
+- `GOOGLE_PLAY_SERVICE_ACCOUNT` — Google Play service account JSON
+
+See `.github/workflows/play-store-deploy.yml` for the complete workflow.
 
 ### iOS/App Store provision (later, on request)
 
@@ -466,8 +495,7 @@ When configuring the OAuth Web Client in Google Cloud Console, include:
 2. Authorized JavaScript origin: `https://<project-ref>.supabase.co`
 3. Local app origin (dev): `http://localhost:3000`
 
-### Production readiness docs
+### Setup & onboarding docs
 
-- `docs/production-readiness-checklist.md`
-- `docs/supabase-next-steps-checklist.md`
-- `docs/supabase-auth-sync-plan.md`
+- `docs/supabase-auth-sync-plan.md` — Supabase authentication + sync architecture
+- `docs/supabase-next-steps-checklist.md` — Step-by-step Supabase + Google OAuth setup

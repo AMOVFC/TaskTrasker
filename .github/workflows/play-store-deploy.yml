@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   deploy_play_store:
-    name: Deploy to Google Play Store (${{ github.event_name == 'pull_request' && 'internal' || 'production' }})
+    name: Deploy to Google Play Store (${{ github.event_name == 'pull_request' && 'preview' || 'production' }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -29,35 +29,97 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/mobile/package.json
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         run: npm install
         working-directory: apps/mobile
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: Set deploy profile
-        id: profile
+      - name: Set dynamic version code
+        working-directory: apps/mobile
         run: |
+          # Different version code ranges for internal (dev) vs production
+          # Internal: 1000-1999, Production: 2000-2999
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "profile=internal" >> "$GITHUB_OUTPUT"
+            VERSION_CODE=$((1000 + ${{ github.run_number }}))
+            echo "Building for INTERNAL track (dev) with versionCode: $VERSION_CODE"
           else
-            echo "profile=production" >> "$GITHUB_OUTPUT"
+            VERSION_CODE=$((2000 + ${{ github.run_number }}))
+            echo "Building for PRODUCTION track with versionCode: $VERSION_CODE"
           fi
 
-      - name: Build with EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
+          # Update app.json with the new versionCode
+          node << 'EOF'
+            const fs = require('fs');
+            const versionCode = parseInt(process.env.VERSION_CODE);
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            appJson.expo.android.versionCode = versionCode;
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2) + '\n');
+            console.log(`Updated versionCode to: ${versionCode}`);
+            console.log('Updated app.json:', JSON.stringify(appJson.expo.android, null, 2));
+          EOF
+
+      - name: Decode keystore
         run: |
-          cd apps/mobile
-          eas build --platform android --profile ${{ steps.profile.outputs.profile }} --non-interactive
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > apps/mobile/android/tasktrasker.keystore
+
+      - name: Build APK/AAB
+        working-directory: apps/mobile
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: tasktrasker
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew bundleRelease assembleRelease
+
+      - name: Package APK for manual deployment
+        working-directory: apps/mobile
+        run: |
+          mkdir -p apk-release
+          cp android/app/build/outputs/apk/release/*.apk apk-release/
+          cd apk-release
+          zip -r ../tasktrasker-apk-${{ github.sha }}.zip .
+          cd ..
+          ls -lh tasktrasker-apk-*.zip
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasktrasker-apk-release
+          path: apps/mobile/tasktrasker-apk-${{ github.sha }}.zip
+          if-no-files-found: warn
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: apps/mobile
+
+      - name: Install Fastlane
+        working-directory: apps/mobile
+        run: bundle exec fastlane --version
 
       - name: Submit to Google Play Store
+        working-directory: apps/mobile
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_PLAY_KEY_FILE: google-play-service-account.json
+          KEYSTORE_PATH: android/tasktrasker.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: tasktrasker
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          FASTLANE_TRACK: ${{ github.event_name == 'pull_request' && 'internal' || 'production' }}
         run: |
-          cd apps/mobile
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}' > google-play-service-account.json
-          eas submit --platform android --profile ${{ steps.profile.outputs.profile }} --non-interactive --latest \
-            --service-account-key-path ./google-play-service-account.json
+          bundle exec fastlane android deploy
           rm google-play-service-account.json
