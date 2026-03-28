@@ -24,7 +24,7 @@
       "expo-router"
     ],
     "extra": {
-      "webAppUrl": "https://tasktasker.com",
+      "webAppUrl": "https://tasktrasker.com",
       "router": {}
     },
     "owner": "task-trasker"
