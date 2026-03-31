@@ -73,17 +73,6 @@ cd apps/mobile/android
 ./gradlew bundleRelease  # Builds app-release.aab
 ```
 
-#### Local Fastlane testing (optional):
-
-```bash
-cd apps/mobile
-bundle install
-export KEYSTORE_PASSWORD=tasktrasker123
-export KEY_ALIAS=tasktrasker
-export GOOGLE_PLAY_KEY_FILE=./google-play-service-account.json
-bundle exec fastlane android deploy --track internal
-```
-
 #### Setup requirements:
 
 Add these GitHub repository secrets:
