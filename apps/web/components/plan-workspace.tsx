@@ -120,6 +120,7 @@ export default function PlanWorkspace({
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [newChildTitles, setNewChildTitles] = useState<Record<string, string>>({})
   const [descriptions, setDescriptions] = useState<Record<string, string>>({})
+  const [dueDateLocked, setDueDateLocked] = useState<Record<string, boolean>>({})
   const [activeView, setActiveView] = useState<WorkspaceView>('manual')
   const [isWideScreen, setIsWideScreen] = useState(false)
   const [hideCompleted, setHideCompleted] = useState(false)
@@ -146,6 +147,13 @@ export default function PlanWorkspace({
       const next = { ...prev }
       for (const task of initialTasks) {
         next[task.id] = next[task.id] ?? ''
+      }
+      return next
+    })
+    setDueDateLocked((prev) => {
+      const next = { ...prev }
+      for (const task of initialTasks) {
+        if (!(task.id in next)) next[task.id] = true
       }
       return next
     })
@@ -381,6 +389,7 @@ export default function PlanWorkspace({
 
     const tempId = `temp-${crypto.randomUUID()}`
     const rootSortOrder = (childrenByParent.root ?? []).length
+    const parsedDueDate = parseDueDateFromDescription(title)
     const optimistic: TaskRecord = {
       id: tempId,
       user_id: userId,
@@ -389,7 +398,7 @@ export default function PlanWorkspace({
       title,
       status: 'todo',
       force_completed: false,
-      due_at: null,
+      due_at: parsedDueDate,
       sort_order: rootSortOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -397,6 +406,7 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks([...prev, optimistic]))
     setPending((prev) => ({ ...prev, [tempId]: true }))
+    setDueDateLocked((prev) => ({ ...prev, [tempId]: true }))
     setNewTaskTitle('')
 
     if (mode === 'demo') {
@@ -418,8 +428,18 @@ export default function PlanWorkspace({
     }
 
     const payload = (await response.json()) as { task: TaskRecord }
-    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? payload.task : task))))
+    const createdTask = payload.task
+    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? createdTask : task))))
+    setDueDateLocked((prev) => {
+      const next = { ...prev, [createdTask.id]: true }
+      delete next[tempId]
+      return next
+    })
     setPending((prev) => ({ ...prev, [tempId]: false }))
+
+    if (parsedDueDate && createdTask.due_at !== parsedDueDate) {
+      void updateTaskDueAt(createdTask.id, parsedDueDate)
+    }
   }
 
   const createChildTask = async (parentTask: TaskRecord) => {
@@ -433,6 +453,7 @@ export default function PlanWorkspace({
 
     const childSortOrder = (childrenByParent[parentTask.id] ?? []).length
     const tempId = `temp-${crypto.randomUUID()}`
+    const childParsedDueDate = parseDueDateFromDescription(title)
     const optimistic: TaskRecord = {
       id: tempId,
       user_id: userId,
@@ -441,7 +462,7 @@ export default function PlanWorkspace({
       title,
       status: 'todo',
       force_completed: false,
-      due_at: null,
+      due_at: childParsedDueDate,
       sort_order: childSortOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -449,6 +470,7 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks([...prev, optimistic]))
     setPending((prev) => ({ ...prev, [tempId]: true }))
+    setDueDateLocked((prev) => ({ ...prev, [tempId]: true }))
     setNewChildTitles((prev) => ({ ...prev, [parentTask.id]: '' }))
 
     if (mode === 'demo') {
@@ -470,8 +492,18 @@ export default function PlanWorkspace({
     }
 
     const payload = (await response.json()) as { task: TaskRecord }
-    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? payload.task : task))))
+    const createdChild = payload.task
+    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? createdChild : task))))
+    setDueDateLocked((prev) => {
+      const next = { ...prev, [createdChild.id]: true }
+      delete next[tempId]
+      return next
+    })
     setPending((prev) => ({ ...prev, [tempId]: false }))
+
+    if (childParsedDueDate && createdChild.due_at !== childParsedDueDate) {
+      void updateTaskDueAt(createdChild.id, childParsedDueDate)
+    }
   }
 
   const updateTaskStatus = async (task: TaskRecord, status: TaskRecord['status']) => {
@@ -1103,7 +1135,7 @@ export default function PlanWorkspace({
                 <div className="mt-3 space-y-2">
                   <label className="text-xs text-slate-400">
                     {showDeveloperMetadata
-                      ? "Description (demo parses dates like 2026-03-01, 03/01/2026, or \"due: March 1, 2026\")"
+                      ? "Description (parses dates like 2026-03-01, 03/01/2026, or \"due: March 1, 2026\")"
                       : "Description"}
                   </label>
                   <textarea
@@ -1111,6 +1143,7 @@ export default function PlanWorkspace({
                     onChange={(event) => {
                       const value = event.target.value
                       setDescriptions((prev) => ({ ...prev, [task.id]: value }))
+                      if (dueDateLocked[task.id] === false) return
                       const parsedDueDate = parseDueDateFromDescription(value)
                       const currentTask = taskById[task.id]
                       if (!currentTask || currentTask.due_at === parsedDueDate) return
@@ -1123,6 +1156,7 @@ export default function PlanWorkspace({
                       )
                     }}
                     onBlur={() => {
+                      if (dueDateLocked[task.id] === false) return
                       const parsedDueDate = parseDueDateFromDescription(descriptions[task.id] ?? '')
                       void updateTaskDueAt(task.id, parsedDueDate)
                     }}
@@ -1130,7 +1164,48 @@ export default function PlanWorkspace({
                     placeholder="Add details and include a due date to auto-assign."
                     className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   />
-                  <p className="text-xs text-slate-400">Due date: {formatDueDate(taskById[task.id]?.due_at) ?? 'None parsed yet'}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">Due date</span>
+                      <button
+                        type="button"
+                        onClick={() => setDueDateLocked((prev) => ({ ...prev, [task.id]: !prev[task.id] }))}
+                        title={dueDateLocked[task.id] !== false ? 'Unlock to edit due date' : 'Lock due date'}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-colors ${
+                          dueDateLocked[task.id] !== false
+                            ? 'border-slate-600 bg-slate-700'
+                            : 'border-cyan-500/40 bg-cyan-500/20'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 rounded-full transition-transform ${
+                            dueDateLocked[task.id] !== false
+                              ? 'translate-x-0.5 bg-slate-400'
+                              : 'translate-x-[18px] bg-cyan-400'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        {dueDateLocked[task.id] !== false ? 'Locked' : 'Unlocked'}
+                      </span>
+                    </div>
+                    {dueDateLocked[task.id] !== false ? (
+                      <span className="text-xs text-slate-400">
+                        {formatDueDate(taskById[task.id]?.due_at) ?? 'No due date'}
+                      </span>
+                    ) : (
+                      <input
+                        type="date"
+                        value={formatDateInputValue(taskById[task.id]?.due_at)}
+                        onChange={(event) => {
+                          const value = event.target.value
+                          const dueAt = value ? new Date(value + 'T00:00:00').toISOString() : null
+                          void updateTaskDueAt(task.id, dueAt)
+                        }}
+                        className="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-xs text-slate-100"
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
