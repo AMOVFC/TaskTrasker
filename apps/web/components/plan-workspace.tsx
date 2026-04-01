@@ -126,6 +126,7 @@ export default function PlanWorkspace({
   const [hideCompleted, setHideCompleted] = useState(false)
   const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
   const [showDeveloperMetadata, setShowDeveloperMetadata] = useState(false)
+  const [groupByKeyword, setGroupByKeyword] = useState(false)
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -180,6 +181,11 @@ export default function PlanWorkspace({
     if (storedRetentionDays === '7' || storedRetentionDays === '30' || storedRetentionDays === '90') {
       setCompletedRetentionDays(Number(storedRetentionDays) as 7 | 30 | 90)
     }
+
+    const storedGroupByKeyword = window.localStorage.getItem('tasktasker-plan-group-by-keyword')
+    if (storedGroupByKeyword === 'true') {
+      setGroupByKeyword(true)
+    }
   }, [])
 
   useEffect(() => {
@@ -206,6 +212,11 @@ export default function PlanWorkspace({
     if (typeof window === 'undefined') return
     window.localStorage.setItem('tasktasker-plan-retention-days', String(completedRetentionDays))
   }, [completedRetentionDays])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-plan-group-by-keyword', String(groupByKeyword))
+  }, [groupByKeyword])
 
   useEffect(() => {
     const onMouseDown = (event: globalThis.MouseEvent) => {
@@ -312,6 +323,59 @@ export default function PlanWorkspace({
 
     return map
   }, [visibleTasks])
+
+  const STOP_WORDS = useMemo(
+    () =>
+      new Set([
+        'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+        'of', 'with', 'by', 'is', 'it', 'this', 'that', 'from', 'as', 'be',
+        'was', 'are', 'do', 'has', 'had', 'not', 'no', 'so', 'if', 'my', 'up',
+        'add', 'get', 'set', 'new', 'make', 'due', 'all', 'we', 'i',
+      ]),
+    []
+  )
+
+  const keywordGroups = useMemo(() => {
+    if (!groupByKeyword) return { groups: {} as Record<string, TaskRecord[]>, ungrouped: [] as TaskRecord[] }
+
+    const rootTasks = (childrenByParent.root ?? []).filter((t) => !hideCompleted || t.status !== 'done')
+
+    const freq: Record<string, number> = {}
+    for (const task of rootTasks) {
+      const words = task.title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
+      const unique = [...new Set(words)] as string[]
+      for (const w of unique) {
+        freq[w] = (freq[w] ?? 0) + 1
+      }
+    }
+
+    const keywords = Object.entries(freq)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .map(([word]) => word)
+
+    const groups: Record<string, TaskRecord[]> = {}
+    const grouped = new Set<string>()
+
+    for (const keyword of keywords) {
+      for (const task of rootTasks) {
+        const titleLower = task.title.toLowerCase()
+        if (titleLower.includes(keyword) && !grouped.has(task.id)) {
+          groups[keyword] = groups[keyword] ?? []
+          groups[keyword].push(task)
+          grouped.add(task.id)
+        }
+      }
+    }
+
+    const ungrouped = rootTasks.filter((t) => !grouped.has(t.id))
+
+    return { groups, ungrouped }
+  }, [groupByKeyword, childrenByParent, hideCompleted, STOP_WORDS])
 
   const descendantsDone = (taskId: string): boolean => {
     const children = childrenByParent[taskId] ?? []
@@ -980,10 +1044,10 @@ export default function PlanWorkspace({
 
   const activeViewMeta = viewOptions.find((view) => view.id === activeView)
 
-  const renderTasks = (parentId: string | null, depth = 0) => {
+  const renderTasks = (parentId: string | null, depth = 0, filterIds?: Set<string>) => {
     const branchTasks = childrenByParent[parentId ?? 'root'] ?? []
 
-    return branchTasks.map((task) => {
+    return branchTasks.filter((task) => !filterIds || filterIds.has(task.id)).map((task) => {
       const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
       const isDone = task.status === 'done'
       if (hideCompleted && isDone) return null
@@ -1337,6 +1401,24 @@ export default function PlanWorkspace({
               <option value={90}>90d</option>
             </select>
           </label>
+          <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            <span>Group by keyword</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={groupByKeyword}
+              onClick={() => setGroupByKeyword((prev) => !prev)}
+              className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                groupByKeyword ? 'bg-cyan-500/40' : 'bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 rounded-full transition-transform ${
+                  groupByKeyword ? 'translate-x-3.5 bg-cyan-400' : 'translate-x-0.5 bg-slate-400'
+                }`}
+              />
+            </button>
+          </label>
         </div>
       </div>
 
@@ -1358,7 +1440,37 @@ export default function PlanWorkspace({
           >
             Drop here to move a task to the root level
           </div>
-          <div className="space-y-2">{renderTasks(null)}</div>
+          {groupByKeyword && Object.keys(keywordGroups.groups).length > 0 ? (
+            <div className="space-y-4">
+              {(Object.entries(keywordGroups.groups) as [string, TaskRecord[]][]).map(([keyword, groupTasks]) => {
+                const ids = new Set(groupTasks.map((t) => t.id))
+                return (
+                  <div key={keyword} className="space-y-2">
+                    <h3 className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                      <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-300">{keyword}</span>
+                      <span className="text-xs text-slate-500">{groupTasks.length} task{groupTasks.length === 1 ? '' : 's'}</span>
+                    </h3>
+                    <div className="space-y-2 border-l-2 border-cyan-500/20 pl-3">
+                      {renderTasks(null, 0, ids)}
+                    </div>
+                  </div>
+                )
+              })}
+              {keywordGroups.ungrouped.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                    <span className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400">Other</span>
+                    <span className="text-xs text-slate-500">{keywordGroups.ungrouped.length} task{keywordGroups.ungrouped.length === 1 ? '' : 's'}</span>
+                  </h3>
+                  <div className="space-y-2 border-l-2 border-slate-700/50 pl-3">
+                    {renderTasks(null, 0, new Set(keywordGroups.ungrouped.map((t) => t.id)))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-2">{renderTasks(null)}</div>
+          )}
         </>
       ) : null}
 
