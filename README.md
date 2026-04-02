@@ -93,7 +93,6 @@ Set these in `apps/web/.env.local` (or deployment secrets) when ready:
 
 ```bash
 NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
-NEXT_PUBLIC_GTM_CONTAINER_ID=GTM-XXXXXXX
 NEXT_PUBLIC_CLARITY_PROJECT_ID=YOUR_CLARITY_PROJECT_ID
 ```
 
