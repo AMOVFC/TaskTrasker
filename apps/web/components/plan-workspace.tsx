@@ -127,6 +127,8 @@ export default function PlanWorkspace({
   const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
   const [showDeveloperMetadata, setShowDeveloperMetadata] = useState(false)
   const [groupByKeyword, setGroupByKeyword] = useState(false)
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
+  const [editingTitleValue, setEditingTitleValue] = useState('')
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -415,6 +417,37 @@ export default function PlanWorkspace({
 
     const result = (await response.json()) as { task: TaskRecord }
     return result.task
+  }
+
+  const updateTaskTitle = async (taskId: string, newTitle: string) => {
+    const task = taskById[taskId]
+    const title = newTitle.trim()
+    if (!task || !title || task.title === title) return
+
+    const previousTask = task
+    const parsedDueDate = parseDueDateFromDescription(title) ?? parseDueDateFromDescription(descriptions[task.id] ?? '')
+    const optimistic = { ...task, title, due_at: dueDateLocked[task.id] !== false ? (parsedDueDate ?? task.due_at) : task.due_at, updated_at: new Date().toISOString() }
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
+    setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    const updated = await patchTask(task, { title }, 'Could not update task title.')
+    if (!updated) {
+      setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? previousTask : item))))
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? { ...updated, due_at: optimistic.due_at } : item))))
+    setPending((prev) => ({ ...prev, [task.id]: false }))
+
+    if (dueDateLocked[task.id] !== false && parsedDueDate && updated.due_at !== parsedDueDate) {
+      void updateTaskDueAt(task.id, parsedDueDate)
+    }
   }
 
   const updateTaskDueAt = async (taskId: string, dueAt: string | null) => {
@@ -1075,8 +1108,48 @@ export default function PlanWorkspace({
             style={{ marginLeft: `${depth * 20}px` }}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+              <div className="min-w-0 flex-1">
+                {editingTitleId === task.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={editingTitleValue}
+                      onChange={(event) => setEditingTitleValue(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          void updateTaskTitle(task.id, editingTitleValue)
+                          setEditingTitleId(null)
+                        }
+                        if (event.key === 'Escape') {
+                          setEditingTitleId(null)
+                        }
+                      }}
+                      onBlur={() => {
+                        void updateTaskTitle(task.id, editingTitleValue)
+                        setEditingTitleId(null)
+                      }}
+                      className="w-full rounded border border-cyan-500/40 bg-slate-900 px-2 py-1 text-sm font-medium text-slate-100 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+                    {!isDone ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTitleId(task.id)
+                          setEditingTitleValue(task.title)
+                        }}
+                        title="Edit title"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-xs text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
+                      >
+                        Edit
+                      </button>
+                    ) : null}
+                  </div>
+                )}
                 {showDeveloperMetadata ? <p className="text-xs text-slate-500">{task.id}</p> : null}
                 {blockedBy ? <p className="text-xs text-amber-300">Blocked by: {blockedBy.title}</p> : null}
               </div>
@@ -1208,9 +1281,10 @@ export default function PlanWorkspace({
                       const value = event.target.value
                       setDescriptions((prev) => ({ ...prev, [task.id]: value }))
                       if (dueDateLocked[task.id] === false) return
-                      const parsedDueDate = parseDueDateFromDescription(value)
                       const currentTask = taskById[task.id]
-                      if (!currentTask || currentTask.due_at === parsedDueDate) return
+                      if (!currentTask) return
+                      const parsedDueDate = parseDueDateFromDescription(currentTask.title + ' ' + value)
+                      if (currentTask.due_at === parsedDueDate) return
                       setTasks((prev) =>
                         orderTasks(
                           prev.map((item) =>
@@ -1221,7 +1295,9 @@ export default function PlanWorkspace({
                     }}
                     onBlur={() => {
                       if (dueDateLocked[task.id] === false) return
-                      const parsedDueDate = parseDueDateFromDescription(descriptions[task.id] ?? '')
+                      const currentTask = taskById[task.id]
+                      const combined = (currentTask?.title ?? '') + ' ' + (descriptions[task.id] ?? '')
+                      const parsedDueDate = parseDueDateFromDescription(combined)
                       void updateTaskDueAt(task.id, parsedDueDate)
                     }}
                     rows={2}
