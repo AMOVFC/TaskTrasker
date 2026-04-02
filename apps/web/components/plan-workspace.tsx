@@ -63,18 +63,125 @@ function formatStatusLabel(status: TaskRecord['status']): string {
     .join(' ')
 }
 
+const MONTH_NAMES: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+  jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+}
+
+const DAY_NAMES: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+}
+
 function parseDueDateFromDescription(description: string): string | null {
+  const text = description.toLowerCase().trim()
+  if (!text) return null
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // ISO: 2026-04-15
   const ymdMatch = description.match(/\b(\d{4}-\d{2}-\d{2})\b/)
+  if (ymdMatch) {
+    const parsed = new Date(ymdMatch[1] + 'T00:00:00')
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  }
+
+  // US: 04/15/2026 or 4/15/2026
   const mdyMatch = description.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/)
-  const duePhraseMatch = description.match(/due\s*[:\-]\s*([A-Za-z]{3,9}\s+\d{1,2},\s*\d{4})/i)
+  if (mdyMatch) {
+    const parts = mdyMatch[1].split('/')
+    const parsed = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]))
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  }
 
-  const candidate = ymdMatch?.[1] ?? mdyMatch?.[1] ?? duePhraseMatch?.[1]
-  if (!candidate) return null
+  // "Month Day, Year" or "Month Day Year" — e.g. "April 15, 2026" or "Apr 15 2026"
+  const monthDayYearMatch = description.match(/\b([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})\b/i)
+  if (monthDayYearMatch) {
+    const monthIdx = MONTH_NAMES[monthDayYearMatch[1].toLowerCase()]
+    if (monthIdx !== undefined) {
+      const parsed = new Date(Number(monthDayYearMatch[3]), monthIdx, Number(monthDayYearMatch[2]))
+      if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+    }
+  }
 
-  const parsed = new Date(candidate)
-  if (Number.isNaN(parsed.getTime())) return null
+  // "Month Day" without year — e.g. "April 15" or "Apr 15th"
+  const monthDayMatch = description.match(/\b([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?\b/i)
+  if (monthDayMatch) {
+    const monthIdx = MONTH_NAMES[monthDayMatch[1].toLowerCase()]
+    if (monthIdx !== undefined) {
+      let year = now.getFullYear()
+      const candidate = new Date(year, monthIdx, Number(monthDayMatch[2]))
+      if (candidate < today) candidate.setFullYear(year + 1)
+      if (!Number.isNaN(candidate.getTime())) return candidate.toISOString()
+    }
+  }
 
-  return parsed.toISOString()
+  // "Day Month" — e.g. "15 April" or "15th Apr"
+  const dayMonthMatch = description.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\b/i)
+  if (dayMonthMatch) {
+    const monthIdx = MONTH_NAMES[dayMonthMatch[2].toLowerCase()]
+    if (monthIdx !== undefined) {
+      let year = now.getFullYear()
+      const candidate = new Date(year, monthIdx, Number(dayMonthMatch[1]))
+      if (candidate < today) candidate.setFullYear(year + 1)
+      if (!Number.isNaN(candidate.getTime())) return candidate.toISOString()
+    }
+  }
+
+  // Relative: "today", "tomorrow", "next week", "next monday", etc.
+  if (/\btoday\b/.test(text)) return today.toISOString()
+
+  if (/\btomorrow\b/.test(text)) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + 1)
+    return d.toISOString()
+  }
+
+  if (/\byesterday\b/.test(text)) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - 1)
+    return d.toISOString()
+  }
+
+  // "next week"
+  if (/\bnext\s+week\b/.test(text)) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + 7)
+    return d.toISOString()
+  }
+
+  // "in N days/weeks"
+  const inNMatch = text.match(/\bin\s+(\d+)\s+(day|days|week|weeks)\b/)
+  if (inNMatch) {
+    const n = Number(inNMatch[1])
+    const d = new Date(today)
+    d.setDate(d.getDate() + (inNMatch[2].startsWith('week') ? n * 7 : n))
+    return d.toISOString()
+  }
+
+  // "next Monday", "this Friday", day names
+  const nextDayMatch = text.match(/\b(?:next|this)\s+([a-z]+)\b/)
+  if (nextDayMatch && DAY_NAMES[nextDayMatch[1]] !== undefined) {
+    const targetDay = DAY_NAMES[nextDayMatch[1]]
+    const d = new Date(today)
+    const diff = (targetDay - d.getDay() + 7) % 7 || 7
+    d.setDate(d.getDate() + diff)
+    return d.toISOString()
+  }
+
+  // Bare day name — "monday", "friday"
+  for (const [name, dayNum] of Object.entries(DAY_NAMES)) {
+    if (name.length >= 3 && new RegExp(`\\b${name}\\b`).test(text)) {
+      const d = new Date(today)
+      const diff = (dayNum - d.getDay() + 7) % 7 || 7
+      d.setDate(d.getDate() + diff)
+      return d.toISOString()
+    }
+  }
+
+  return null
 }
 
 function formatDueDate(value: string | null): string | null {
