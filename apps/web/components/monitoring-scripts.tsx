@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import Script from 'next/script'
 import { GoogleAnalyticsPageTracker } from './google-analytics-page-tracker'
 
@@ -45,7 +46,9 @@ function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', '${gaMeasurementId}', { send_page_view: false });`}
           </Script>
-          <GoogleAnalyticsPageTracker measurementId={gaMeasurementId} />
+          <Suspense fallback={null}>
+            <GoogleAnalyticsPageTracker measurementId={gaMeasurementId} />
+          </Suspense>
         </>
       ) : null}
 

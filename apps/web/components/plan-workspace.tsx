@@ -63,18 +63,125 @@ function formatStatusLabel(status: TaskRecord['status']): string {
     .join(' ')
 }
 
+const MONTH_NAMES: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+  jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+}
+
+const DAY_NAMES: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+}
+
 function parseDueDateFromDescription(description: string): string | null {
+  const text = description.toLowerCase().trim()
+  if (!text) return null
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // ISO: 2026-04-15
   const ymdMatch = description.match(/\b(\d{4}-\d{2}-\d{2})\b/)
+  if (ymdMatch) {
+    const parsed = new Date(ymdMatch[1] + 'T00:00:00')
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  }
+
+  // US: 04/15/2026 or 4/15/2026
   const mdyMatch = description.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/)
-  const duePhraseMatch = description.match(/due\s*[:\-]\s*([A-Za-z]{3,9}\s+\d{1,2},\s*\d{4})/i)
+  if (mdyMatch) {
+    const parts = mdyMatch[1].split('/')
+    const parsed = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]))
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  }
 
-  const candidate = ymdMatch?.[1] ?? mdyMatch?.[1] ?? duePhraseMatch?.[1]
-  if (!candidate) return null
+  // "Month Day, Year" or "Month Day Year" — e.g. "April 15, 2026" or "Apr 15 2026"
+  const monthDayYearMatch = description.match(/\b([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})\b/i)
+  if (monthDayYearMatch) {
+    const monthIdx = MONTH_NAMES[monthDayYearMatch[1].toLowerCase()]
+    if (monthIdx !== undefined) {
+      const parsed = new Date(Number(monthDayYearMatch[3]), monthIdx, Number(monthDayYearMatch[2]))
+      if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+    }
+  }
 
-  const parsed = new Date(candidate)
-  if (Number.isNaN(parsed.getTime())) return null
+  // "Month Day" without year — e.g. "April 15" or "Apr 15th"
+  const monthDayMatch = description.match(/\b([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?\b/i)
+  if (monthDayMatch) {
+    const monthIdx = MONTH_NAMES[monthDayMatch[1].toLowerCase()]
+    if (monthIdx !== undefined) {
+      let year = now.getFullYear()
+      const candidate = new Date(year, monthIdx, Number(monthDayMatch[2]))
+      if (candidate < today) candidate.setFullYear(year + 1)
+      if (!Number.isNaN(candidate.getTime())) return candidate.toISOString()
+    }
+  }
 
-  return parsed.toISOString()
+  // "Day Month" — e.g. "15 April" or "15th Apr"
+  const dayMonthMatch = description.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\b/i)
+  if (dayMonthMatch) {
+    const monthIdx = MONTH_NAMES[dayMonthMatch[2].toLowerCase()]
+    if (monthIdx !== undefined) {
+      let year = now.getFullYear()
+      const candidate = new Date(year, monthIdx, Number(dayMonthMatch[1]))
+      if (candidate < today) candidate.setFullYear(year + 1)
+      if (!Number.isNaN(candidate.getTime())) return candidate.toISOString()
+    }
+  }
+
+  // Relative: "today", "tomorrow", "next week", "next monday", etc.
+  if (/\btoday\b/.test(text)) return today.toISOString()
+
+  if (/\btomorrow\b/.test(text)) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + 1)
+    return d.toISOString()
+  }
+
+  if (/\byesterday\b/.test(text)) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - 1)
+    return d.toISOString()
+  }
+
+  // "next week"
+  if (/\bnext\s+week\b/.test(text)) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + 7)
+    return d.toISOString()
+  }
+
+  // "in N days/weeks"
+  const inNMatch = text.match(/\bin\s+(\d+)\s+(day|days|week|weeks)\b/)
+  if (inNMatch) {
+    const n = Number(inNMatch[1])
+    const d = new Date(today)
+    d.setDate(d.getDate() + (inNMatch[2].startsWith('week') ? n * 7 : n))
+    return d.toISOString()
+  }
+
+  // "next Monday", "this Friday", day names
+  const nextDayMatch = text.match(/\b(?:next|this)\s+([a-z]+)\b/)
+  if (nextDayMatch && DAY_NAMES[nextDayMatch[1]] !== undefined) {
+    const targetDay = DAY_NAMES[nextDayMatch[1]]
+    const d = new Date(today)
+    const diff = (targetDay - d.getDay() + 7) % 7 || 7
+    d.setDate(d.getDate() + diff)
+    return d.toISOString()
+  }
+
+  // Bare day name — "monday", "friday"
+  for (const [name, dayNum] of Object.entries(DAY_NAMES)) {
+    if (name.length >= 3 && new RegExp(`\\b${name}\\b`).test(text)) {
+      const d = new Date(today)
+      const diff = (dayNum - d.getDay() + 7) % 7 || 7
+      d.setDate(d.getDate() + diff)
+      return d.toISOString()
+    }
+  }
+
+  return null
 }
 
 function formatDueDate(value: string | null): string | null {
@@ -120,11 +227,15 @@ export default function PlanWorkspace({
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [newChildTitles, setNewChildTitles] = useState<Record<string, string>>({})
   const [descriptions, setDescriptions] = useState<Record<string, string>>({})
+  const [dueDateLocked, setDueDateLocked] = useState<Record<string, boolean>>({})
   const [activeView, setActiveView] = useState<WorkspaceView>('manual')
   const [isWideScreen, setIsWideScreen] = useState(false)
   const [hideCompleted, setHideCompleted] = useState(false)
   const [completedRetentionDays, setCompletedRetentionDays] = useState<7 | 30 | 90>(30)
   const [showDeveloperMetadata, setShowDeveloperMetadata] = useState(false)
+  const [groupByKeyword, setGroupByKeyword] = useState(false)
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
+  const [editingTitleValue, setEditingTitleValue] = useState('')
 
   useEffect(() => {
     if (mode !== 'supabase') return
@@ -146,6 +257,13 @@ export default function PlanWorkspace({
       const next = { ...prev }
       for (const task of initialTasks) {
         next[task.id] = next[task.id] ?? ''
+      }
+      return next
+    })
+    setDueDateLocked((prev) => {
+      const next = { ...prev }
+      for (const task of initialTasks) {
+        if (!(task.id in next)) next[task.id] = true
       }
       return next
     })
@@ -171,6 +289,11 @@ export default function PlanWorkspace({
     const storedRetentionDays = window.localStorage.getItem('tasktasker-plan-retention-days')
     if (storedRetentionDays === '7' || storedRetentionDays === '30' || storedRetentionDays === '90') {
       setCompletedRetentionDays(Number(storedRetentionDays) as 7 | 30 | 90)
+    }
+
+    const storedGroupByKeyword = window.localStorage.getItem('tasktasker-plan-group-by-keyword')
+    if (storedGroupByKeyword === 'true') {
+      setGroupByKeyword(true)
     }
   }, [])
 
@@ -198,6 +321,11 @@ export default function PlanWorkspace({
     if (typeof window === 'undefined') return
     window.localStorage.setItem('tasktasker-plan-retention-days', String(completedRetentionDays))
   }, [completedRetentionDays])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('tasktasker-plan-group-by-keyword', String(groupByKeyword))
+  }, [groupByKeyword])
 
   useEffect(() => {
     const onMouseDown = (event: globalThis.MouseEvent) => {
@@ -305,6 +433,59 @@ export default function PlanWorkspace({
     return map
   }, [visibleTasks])
 
+  const STOP_WORDS = useMemo(
+    () =>
+      new Set([
+        'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+        'of', 'with', 'by', 'is', 'it', 'this', 'that', 'from', 'as', 'be',
+        'was', 'are', 'do', 'has', 'had', 'not', 'no', 'so', 'if', 'my', 'up',
+        'add', 'get', 'set', 'new', 'make', 'due', 'all', 'we', 'i',
+      ]),
+    []
+  )
+
+  const keywordGroups = useMemo(() => {
+    if (!groupByKeyword) return { groups: {} as Record<string, TaskRecord[]>, ungrouped: [] as TaskRecord[] }
+
+    const rootTasks = (childrenByParent.root ?? []).filter((t) => !hideCompleted || t.status !== 'done')
+
+    const freq: Record<string, number> = {}
+    for (const task of rootTasks) {
+      const words = task.title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
+      const unique = [...new Set(words)] as string[]
+      for (const w of unique) {
+        freq[w] = (freq[w] ?? 0) + 1
+      }
+    }
+
+    const keywords = Object.entries(freq)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .map(([word]) => word)
+
+    const groups: Record<string, TaskRecord[]> = {}
+    const grouped = new Set<string>()
+
+    for (const keyword of keywords) {
+      for (const task of rootTasks) {
+        const titleLower = task.title.toLowerCase()
+        if (titleLower.includes(keyword) && !grouped.has(task.id)) {
+          groups[keyword] = groups[keyword] ?? []
+          groups[keyword].push(task)
+          grouped.add(task.id)
+        }
+      }
+    }
+
+    const ungrouped = rootTasks.filter((t) => !grouped.has(t.id))
+
+    return { groups, ungrouped }
+  }, [groupByKeyword, childrenByParent, hideCompleted, STOP_WORDS])
+
   const descendantsDone = (taskId: string): boolean => {
     const children = childrenByParent[taskId] ?? []
     return children.every((child) => child.status === 'done' && descendantsDone(child.id))
@@ -345,6 +526,37 @@ export default function PlanWorkspace({
     return result.task
   }
 
+  const updateTaskTitle = async (taskId: string, newTitle: string) => {
+    const task = taskById[taskId]
+    const title = newTitle.trim()
+    if (!task || !title || task.title === title) return
+
+    const previousTask = task
+    const parsedDueDate = parseDueDateFromDescription(title) ?? parseDueDateFromDescription(descriptions[task.id] ?? '')
+    const optimistic = { ...task, title, due_at: dueDateLocked[task.id] !== false ? (parsedDueDate ?? task.due_at) : task.due_at, updated_at: new Date().toISOString() }
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? optimistic : item))))
+    setPending((prev) => ({ ...prev, [task.id]: true }))
+
+    if (mode === 'demo') {
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    const updated = await patchTask(task, { title }, 'Could not update task title.')
+    if (!updated) {
+      setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? previousTask : item))))
+      setPending((prev) => ({ ...prev, [task.id]: false }))
+      return
+    }
+
+    setTasks((prev) => orderTasks(prev.map((item) => (item.id === task.id ? { ...updated, due_at: optimistic.due_at } : item))))
+    setPending((prev) => ({ ...prev, [task.id]: false }))
+
+    if (dueDateLocked[task.id] !== false && parsedDueDate && updated.due_at !== parsedDueDate) {
+      void updateTaskDueAt(task.id, parsedDueDate)
+    }
+  }
+
   const updateTaskDueAt = async (taskId: string, dueAt: string | null) => {
     const task = taskById[taskId]
     if (!task || task.due_at === dueAt) return
@@ -381,6 +593,7 @@ export default function PlanWorkspace({
 
     const tempId = `temp-${crypto.randomUUID()}`
     const rootSortOrder = (childrenByParent.root ?? []).length
+    const parsedDueDate = parseDueDateFromDescription(title)
     const optimistic: TaskRecord = {
       id: tempId,
       user_id: userId,
@@ -389,7 +602,7 @@ export default function PlanWorkspace({
       title,
       status: 'todo',
       force_completed: false,
-      due_at: null,
+      due_at: parsedDueDate,
       sort_order: rootSortOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -397,6 +610,7 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks([...prev, optimistic]))
     setPending((prev) => ({ ...prev, [tempId]: true }))
+    setDueDateLocked((prev) => ({ ...prev, [tempId]: true }))
     setNewTaskTitle('')
 
     if (mode === 'demo') {
@@ -418,8 +632,18 @@ export default function PlanWorkspace({
     }
 
     const payload = (await response.json()) as { task: TaskRecord }
-    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? payload.task : task))))
+    const createdTask = payload.task
+    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? createdTask : task))))
+    setDueDateLocked((prev) => {
+      const next = { ...prev, [createdTask.id]: true }
+      delete next[tempId]
+      return next
+    })
     setPending((prev) => ({ ...prev, [tempId]: false }))
+
+    if (parsedDueDate && createdTask.due_at !== parsedDueDate) {
+      void updateTaskDueAt(createdTask.id, parsedDueDate)
+    }
   }
 
   const createChildTask = async (parentTask: TaskRecord) => {
@@ -433,6 +657,7 @@ export default function PlanWorkspace({
 
     const childSortOrder = (childrenByParent[parentTask.id] ?? []).length
     const tempId = `temp-${crypto.randomUUID()}`
+    const childParsedDueDate = parseDueDateFromDescription(title)
     const optimistic: TaskRecord = {
       id: tempId,
       user_id: userId,
@@ -441,7 +666,7 @@ export default function PlanWorkspace({
       title,
       status: 'todo',
       force_completed: false,
-      due_at: null,
+      due_at: childParsedDueDate,
       sort_order: childSortOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -449,6 +674,7 @@ export default function PlanWorkspace({
 
     setTasks((prev) => orderTasks([...prev, optimistic]))
     setPending((prev) => ({ ...prev, [tempId]: true }))
+    setDueDateLocked((prev) => ({ ...prev, [tempId]: true }))
     setNewChildTitles((prev) => ({ ...prev, [parentTask.id]: '' }))
 
     if (mode === 'demo') {
@@ -470,8 +696,18 @@ export default function PlanWorkspace({
     }
 
     const payload = (await response.json()) as { task: TaskRecord }
-    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? payload.task : task))))
+    const createdChild = payload.task
+    setTasks((prev) => orderTasks(prev.map((task) => (task.id === tempId ? createdChild : task))))
+    setDueDateLocked((prev) => {
+      const next = { ...prev, [createdChild.id]: true }
+      delete next[tempId]
+      return next
+    })
     setPending((prev) => ({ ...prev, [tempId]: false }))
+
+    if (childParsedDueDate && createdChild.due_at !== childParsedDueDate) {
+      void updateTaskDueAt(createdChild.id, childParsedDueDate)
+    }
   }
 
   const updateTaskStatus = async (task: TaskRecord, status: TaskRecord['status']) => {
@@ -948,10 +1184,10 @@ export default function PlanWorkspace({
 
   const activeViewMeta = viewOptions.find((view) => view.id === activeView)
 
-  const renderTasks = (parentId: string | null, depth = 0) => {
+  const renderTasks = (parentId: string | null, depth = 0, filterIds?: Set<string>) => {
     const branchTasks = childrenByParent[parentId ?? 'root'] ?? []
 
-    return branchTasks.map((task) => {
+    return branchTasks.filter((task) => !filterIds || filterIds.has(task.id)).map((task) => {
       const blockedBy = task.blocking_task_id ? taskById[task.blocking_task_id] : null
       const isDone = task.status === 'done'
       if (hideCompleted && isDone) return null
@@ -979,13 +1215,51 @@ export default function PlanWorkspace({
             style={{ marginLeft: `${depth * 20}px` }}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+              <div className="min-w-0 flex-1">
+                {editingTitleId === task.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={editingTitleValue}
+                      onChange={(event) => setEditingTitleValue(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          void updateTaskTitle(task.id, editingTitleValue)
+                          setEditingTitleId(null)
+                        }
+                        if (event.key === 'Escape') {
+                          setEditingTitleId(null)
+                        }
+                      }}
+                      onBlur={() => {
+                        void updateTaskTitle(task.id, editingTitleValue)
+                        setEditingTitleId(null)
+                      }}
+                      className="w-full rounded border border-cyan-500/40 bg-slate-900 px-2 py-1 text-sm font-medium text-slate-100 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50"
+                    />
+                  </div>
+                ) : (
+                  <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
+                )}
                 {showDeveloperMetadata ? <p className="text-xs text-slate-500">{task.id}</p> : null}
                 {blockedBy ? <p className="text-xs text-amber-300">Blocked by: {blockedBy.title}</p> : null}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {!isDone ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTitleId(task.id)
+                      setEditingTitleValue(task.title)
+                    }}
+                    title="Edit title"
+                    className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100"
+                  >
+                    Edit
+                  </button>
+                ) : null}
                 <div className="relative flex items-center rounded border border-slate-700 bg-slate-950 text-slate-100" data-ui-dropdown="true">
                   <button type="button" className="px-2 py-1 text-xs">
                     Status: {formatStatusLabel(task.status)}
@@ -1103,7 +1377,7 @@ export default function PlanWorkspace({
                 <div className="mt-3 space-y-2">
                   <label className="text-xs text-slate-400">
                     {showDeveloperMetadata
-                      ? "Description (demo parses dates like 2026-03-01, 03/01/2026, or \"due: March 1, 2026\")"
+                      ? "Description (parses dates like 2026-03-01, 03/01/2026, or \"due: March 1, 2026\")"
                       : "Description"}
                   </label>
                   <textarea
@@ -1111,9 +1385,11 @@ export default function PlanWorkspace({
                     onChange={(event) => {
                       const value = event.target.value
                       setDescriptions((prev) => ({ ...prev, [task.id]: value }))
-                      const parsedDueDate = parseDueDateFromDescription(value)
+                      if (dueDateLocked[task.id] === false) return
                       const currentTask = taskById[task.id]
-                      if (!currentTask || currentTask.due_at === parsedDueDate) return
+                      if (!currentTask) return
+                      const parsedDueDate = parseDueDateFromDescription(currentTask.title + ' ' + value)
+                      if (currentTask.due_at === parsedDueDate) return
                       setTasks((prev) =>
                         orderTasks(
                           prev.map((item) =>
@@ -1123,14 +1399,58 @@ export default function PlanWorkspace({
                       )
                     }}
                     onBlur={() => {
-                      const parsedDueDate = parseDueDateFromDescription(descriptions[task.id] ?? '')
+                      if (dueDateLocked[task.id] === false) return
+                      const currentTask = taskById[task.id]
+                      const combined = (currentTask?.title ?? '') + ' ' + (descriptions[task.id] ?? '')
+                      const parsedDueDate = parseDueDateFromDescription(combined)
                       void updateTaskDueAt(task.id, parsedDueDate)
                     }}
                     rows={2}
                     placeholder="Add details and include a due date to auto-assign."
                     className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   />
-                  <p className="text-xs text-slate-400">Due date: {formatDueDate(taskById[task.id]?.due_at) ?? 'None parsed yet'}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">Due date</span>
+                      <button
+                        type="button"
+                        onClick={() => setDueDateLocked((prev) => ({ ...prev, [task.id]: !prev[task.id] }))}
+                        title={dueDateLocked[task.id] !== false ? 'Unlock to edit due date' : 'Lock due date'}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-colors ${
+                          dueDateLocked[task.id] !== false
+                            ? 'border-slate-600 bg-slate-700'
+                            : 'border-cyan-500/40 bg-cyan-500/20'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 rounded-full transition-transform ${
+                            dueDateLocked[task.id] !== false
+                              ? 'translate-x-0.5 bg-slate-400'
+                              : 'translate-x-[18px] bg-cyan-400'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        {dueDateLocked[task.id] !== false ? 'Locked' : 'Unlocked'}
+                      </span>
+                    </div>
+                    {dueDateLocked[task.id] !== false ? (
+                      <span className="text-xs text-slate-400">
+                        {formatDueDate(taskById[task.id]?.due_at) ?? 'No due date'}
+                      </span>
+                    ) : (
+                      <input
+                        type="date"
+                        value={formatDateInputValue(taskById[task.id]?.due_at)}
+                        onChange={(event) => {
+                          const value = event.target.value
+                          const dueAt = value ? new Date(value + 'T00:00:00').toISOString() : null
+                          void updateTaskDueAt(task.id, dueAt)
+                        }}
+                        className="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-xs text-slate-100"
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
@@ -1240,14 +1560,23 @@ export default function PlanWorkspace({
           </button>
         </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-xs text-slate-200">
-          <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
-            <input
-              type="checkbox"
-              checked={hideCompleted}
-              onChange={(event) => setHideCompleted(event.target.checked)}
-              className="h-3.5 w-3.5 rounded border-slate-500 bg-slate-900"
-            />
-            Hide completed
+          <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
+            <span>Hide completed</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hideCompleted}
+              onClick={() => setHideCompleted((prev) => !prev)}
+              className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                hideCompleted ? 'bg-cyan-500/40' : 'bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 rounded-full transition-transform ${
+                  hideCompleted ? 'translate-x-3.5 bg-cyan-400' : 'translate-x-0.5 bg-slate-400'
+                }`}
+              />
+            </button>
           </label>
           <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
             <span>Delete after</span>
@@ -1261,6 +1590,24 @@ export default function PlanWorkspace({
               <option value={30}>30d</option>
               <option value={90}>90d</option>
             </select>
+          </label>
+          <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            <span>Group by keyword</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={groupByKeyword}
+              onClick={() => setGroupByKeyword((prev) => !prev)}
+              className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                groupByKeyword ? 'bg-cyan-500/40' : 'bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 rounded-full transition-transform ${
+                  groupByKeyword ? 'translate-x-3.5 bg-cyan-400' : 'translate-x-0.5 bg-slate-400'
+                }`}
+              />
+            </button>
           </label>
         </div>
       </div>
@@ -1283,7 +1630,37 @@ export default function PlanWorkspace({
           >
             Drop here to move a task to the root level
           </div>
-          <div className="space-y-2">{renderTasks(null)}</div>
+          {groupByKeyword && Object.keys(keywordGroups.groups).length > 0 ? (
+            <div className="space-y-4">
+              {(Object.entries(keywordGroups.groups) as [string, TaskRecord[]][]).map(([keyword, groupTasks]) => {
+                const ids = new Set(groupTasks.map((t) => t.id))
+                return (
+                  <div key={keyword} className="space-y-2">
+                    <h3 className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                      <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-300">{keyword}</span>
+                      <span className="text-xs text-slate-500">{groupTasks.length} task{groupTasks.length === 1 ? '' : 's'}</span>
+                    </h3>
+                    <div className="space-y-2 border-l-2 border-cyan-500/20 pl-3">
+                      {renderTasks(null, 0, ids)}
+                    </div>
+                  </div>
+                )
+              })}
+              {keywordGroups.ungrouped.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                    <span className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400">Other</span>
+                    <span className="text-xs text-slate-500">{keywordGroups.ungrouped.length} task{keywordGroups.ungrouped.length === 1 ? '' : 's'}</span>
+                  </h3>
+                  <div className="space-y-2 border-l-2 border-slate-700/50 pl-3">
+                    {renderTasks(null, 0, new Set(keywordGroups.ungrouped.map((t) => t.id)))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-2">{renderTasks(null)}</div>
+          )}
         </>
       ) : null}
 
