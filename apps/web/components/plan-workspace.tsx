@@ -1133,28 +1133,26 @@ export default function PlanWorkspace({
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
-                    {!isDone ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingTitleId(task.id)
-                          setEditingTitleValue(task.title)
-                        }}
-                        title="Edit title"
-                        className="shrink-0 rounded px-1.5 py-0.5 text-xs text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
-                      >
-                        Edit
-                      </button>
-                    ) : null}
-                  </div>
+                  <p className={`font-medium ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{task.title}</p>
                 )}
                 {showDeveloperMetadata ? <p className="text-xs text-slate-500">{task.id}</p> : null}
                 {blockedBy ? <p className="text-xs text-amber-300">Blocked by: {blockedBy.title}</p> : null}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {!isDone ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTitleId(task.id)
+                      setEditingTitleValue(task.title)
+                    }}
+                    title="Edit title"
+                    className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100"
+                  >
+                    Edit
+                  </button>
+                ) : null}
                 <div className="relative flex items-center rounded border border-slate-700 bg-slate-950 text-slate-100" data-ui-dropdown="true">
                   <button type="button" className="px-2 py-1 text-xs">
                     Status: {formatStatusLabel(task.status)}
@@ -1455,14 +1453,23 @@ export default function PlanWorkspace({
           </button>
         </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-xs text-slate-200">
-          <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
-            <input
-              type="checkbox"
-              checked={hideCompleted}
-              onChange={(event) => setHideCompleted(event.target.checked)}
-              className="h-3.5 w-3.5 rounded border-slate-500 bg-slate-900"
-            />
-            Hide completed
+          <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
+            <span>Hide completed</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hideCompleted}
+              onClick={() => setHideCompleted((prev) => !prev)}
+              className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                hideCompleted ? 'bg-cyan-500/40' : 'bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 rounded-full transition-transform ${
+                  hideCompleted ? 'translate-x-3.5 bg-cyan-400' : 'translate-x-0.5 bg-slate-400'
+                }`}
+              />
+            </button>
           </label>
           <label className="flex h-7 items-center gap-1.5 rounded border border-slate-700 bg-slate-950/80 px-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
             <span>Delete after</span>
