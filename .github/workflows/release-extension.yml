@@ -1,6 +1,12 @@
 name: Deploy Chrome Extension
 
 on:
+  push:
+    branches: ['**']
+    paths: ['apps/chrome-extension/**']
+  pull_request:
+    branches: [main]
+    paths: ['apps/chrome-extension/**']
   release:
     types: [published]
 
@@ -8,10 +14,45 @@ permissions:
   contents: write # needed to attach zip to release
 
 concurrency:
-  group: chrome-extension-deploy
-  cancel-in-progress: false
+  group: chrome-ext-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # ── Package (push / PR) ── produces a downloadable zip for manual testing ──
+
+  package:
+    name: Lint & package extension
+    runs-on: ubuntu-latest
+    if: github.event_name != 'release'
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint extension with web-ext
+        run: npx web-ext lint --source-dir apps/chrome-extension
+
+      - name: Create extension zip
+        working-directory: apps/chrome-extension
+        run: |
+          zip -r ../../chrome-extension.zip . \
+            -x "README.md" ".*"
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension-zip
+          path: chrome-extension.zip
+          if-no-files-found: error
+
+  # ── Release (ext-v* tags) ── validates, zips, and publishes to Web Store ──
+
   validate:
     name: Validate & package extension
     runs-on: ubuntu-latest
