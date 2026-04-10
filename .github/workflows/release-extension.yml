@@ -33,7 +33,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+
+      - name: Run extension unit tests
+        working-directory: apps/chrome-extension
+        run: npm test
 
       - name: Lint extension with web-ext (Chrome-only, Firefox warnings tolerated)
         run: |
@@ -56,7 +60,7 @@ jobs:
         working-directory: apps/chrome-extension
         run: |
           zip -r ../../chrome-extension.zip . \
-            -x "README.md" ".*"
+            -x "README.md" ".*" "package.json" "test/*"
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
@@ -81,7 +85,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Extract version from tag
         id: version
@@ -97,6 +101,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
           echo "manifest.json version set to: $(jq -r .version manifest.json)"
+
+      - name: Run extension unit tests
+        working-directory: apps/chrome-extension
+        run: npm test
 
       - name: Lint extension with web-ext (Chrome-only, Firefox warnings tolerated)
         run: |
@@ -117,7 +125,7 @@ jobs:
         working-directory: apps/chrome-extension
         run: |
           zip -r ../../extension-${{ steps.version.outputs.version }}.zip . \
-            -x "README.md" ".*"
+            -x "README.md" ".*" "package.json" "test/*"
 
       - name: Upload zip as release asset
         env:

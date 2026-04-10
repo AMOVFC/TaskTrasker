@@ -10,16 +10,12 @@
 ;(function () {
   self.TaskTrasker = self.TaskTrasker || {}
 
+  var lib = self.TaskTrasker.lib
+
   const TASK_SELECT_FIELDS =
     'id,user_id,parent_id,blocking_task_id,title,status,force_completed,due_at,sort_order,created_at,updated_at'
 
-  const TASK_STATUS_VALUES = Object.freeze([
-    'todo',
-    'in_progress',
-    'blocked',
-    'delayed',
-    'done',
-  ])
+  const TASK_STATUS_VALUES = lib.TASK_STATUS_VALUES
 
   function sb() {
     return self.TaskTrasker.auth.getSupabase()
@@ -111,35 +107,8 @@
     return { ok: true }
   }
 
-  /**
-   * Build a tree structure from a flat task list.
-   */
-  function buildTaskTree(tasks) {
-    const map = new Map()
-    const roots = []
-
-    for (const task of tasks) {
-      map.set(task.id, { ...task, children: [] })
-    }
-
-    for (const task of tasks) {
-      const node = map.get(task.id)
-      if (task.parent_id && map.has(task.parent_id)) {
-        map.get(task.parent_id).children.push(node)
-      } else {
-        roots.push(node)
-      }
-    }
-
-    return roots
-  }
-
-  /**
-   * Count incomplete tasks (status !== 'done').
-   */
-  function countIncompleteTasks(tasks) {
-    return tasks.filter((t) => t.status !== 'done').length
-  }
+  var buildTaskTree = lib.buildTaskTree
+  var countIncompleteTasks = lib.countIncompleteTasks
 
   // Public API
   self.TaskTrasker.tasks = {

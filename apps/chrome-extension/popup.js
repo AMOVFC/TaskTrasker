@@ -15,6 +15,7 @@
 ;(function () {
   var auth = self.TaskTrasker.auth
   var tasks = self.TaskTrasker.tasks
+  var lib = self.TaskTrasker.lib
 
   // --- DOM References ---
 
@@ -44,24 +45,8 @@
     done: 'Done',
   }
 
-  function nextStatus(current) {
-    var cycle = ['todo', 'in_progress', 'done']
-    var idx = cycle.indexOf(current)
-    if (idx === -1) return 'todo'
-    return cycle[(idx + 1) % cycle.length]
-  }
-
-  function formatDueDate(dueAt) {
-    if (!dueAt) return null
-    var due = new Date(dueAt)
-    var now = new Date()
-    var diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24))
-
-    if (diffDays < 0) return { text: Math.abs(diffDays) + 'd overdue', overdue: true }
-    if (diffDays === 0) return { text: 'Due today', overdue: false }
-    if (diffDays === 1) return { text: 'Due tomorrow', overdue: false }
-    return { text: 'Due in ' + diffDays + 'd', overdue: false }
-  }
+  var nextStatus = lib.nextStatus
+  var formatDueDate = lib.formatDueDate
 
   // --- View Management ---
 

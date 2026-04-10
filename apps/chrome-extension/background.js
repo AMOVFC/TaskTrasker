@@ -8,7 +8,7 @@
  * - Message relay between popup and background
  */
 
-importScripts('vendor/supabase.min.js', 'supabase-client.js', 'tasks-api.js')
+importScripts('vendor/supabase.min.js', 'lib.js', 'supabase-client.js', 'tasks-api.js')
 
 const ALARM_NAME = 'tasktrasker-badge-refresh'
 const BADGE_REFRESH_MINUTES = 5

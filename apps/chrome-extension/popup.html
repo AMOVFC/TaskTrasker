@@ -87,8 +87,9 @@
     <div id="main-error" class="error-msg hidden"></div>
   </div>
 
-  <!-- Scripts loaded in order: Supabase lib → auth client → tasks API → popup UI -->
+  <!-- Scripts loaded in order: Supabase lib → shared utils → auth client → tasks API → popup UI -->
   <script src="vendor/supabase.min.js"></script>
+  <script src="lib.js"></script>
   <script src="supabase-client.js"></script>
   <script src="tasks-api.js"></script>
   <script src="popup.js"></script>
