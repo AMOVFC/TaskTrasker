@@ -75,6 +75,7 @@
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        flowType: 'implicit',
       },
     })
 
@@ -83,6 +84,17 @@
 
   /**
    * Sign in with Google via chrome.identity.launchWebAuthFlow.
+   *
+   * The flow:
+   * 1. Get the Supabase OAuth URL (which redirects to Google)
+   * 2. Open it in a Chrome auth popup via launchWebAuthFlow
+   * 3. After Google auth, Supabase redirects back to our extension URL
+   * 4. Extract tokens from the redirect URL (hash or query params)
+   *
+   * IMPORTANT: The extension's redirect URL must be added to the Supabase
+   * project's allowed redirect URLs at:
+   * Supabase Dashboard → Authentication → URL Configuration → Redirect URLs
+   * Add: https://<extension-id>.chromiumapp.org/**
    */
   async function signIn() {
     const sb = getSupabase()
@@ -98,9 +110,15 @@
 
     if (error) throw error
 
+    // Remove skip_http_redirect from the URL — it can prevent the Supabase
+    // server from performing the 302 redirect that launchWebAuthFlow needs
+    // to detect the callback and close the popup.
+    const authUrl = new URL(data.url)
+    authUrl.searchParams.delete('skip_http_redirect')
+
     const responseUrl = await new Promise((resolve, reject) => {
       chrome.identity.launchWebAuthFlow(
-        { url: data.url, interactive: true },
+        { url: authUrl.toString(), interactive: true },
         (callbackUrl) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message))
@@ -111,22 +129,29 @@
       )
     })
 
-    // Supabase redirects with tokens in the URL hash fragment
+    // Implicit flow: tokens arrive in the URL hash fragment
     const hashParams = new URLSearchParams(responseUrl.split('#')[1] || '')
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
 
-    if (!accessToken || !refreshToken) {
-      throw new Error('Authentication failed: no tokens received.')
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await sb.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+      if (sessionError) throw sessionError
+      return await sb.auth.getUser()
     }
 
-    const { error: sessionError } = await sb.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    })
+    // PKCE flow fallback: an authorization code arrives in query params
+    const code = new URL(responseUrl).searchParams.get('code')
+    if (code) {
+      const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code)
+      if (exchangeError) throw exchangeError
+      return await sb.auth.getUser()
+    }
 
-    if (sessionError) throw sessionError
-    return await sb.auth.getUser()
+    throw new Error('Authentication failed: no tokens or authorization code received.')
   }
 
   async function signOut() {
