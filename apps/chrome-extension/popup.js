@@ -1,17 +1,3 @@
-/**
- * Popup UI logic for TaskTrasker Chrome extension.
- *
- * Handles:
- * - Auth state (login/main view switching)
- * - Task list rendering (tree with expand/collapse)
- * - Quick add
- * - Status cycling
- * - Task deletion
- *
- * Depends on self.TaskTrasker.auth and self.TaskTrasker.tasks
- * (loaded via <script> tags in popup.html before this file).
- */
-
 ;(function () {
   var auth = self.TaskTrasker.auth
   var tasks = self.TaskTrasker.tasks
@@ -30,10 +16,43 @@
   var loadingEl = document.getElementById('loading')
   var emptyStateEl = document.getElementById('empty-state')
   var mainError = document.getElementById('main-error')
+  var groupFilterBar = document.getElementById('group-filter-bar')
+
+  var editModal = document.getElementById('edit-modal')
+  var modalClose = document.getElementById('modal-close')
+  var modalTitleInput = document.getElementById('modal-title-input')
+  var modalGroupInput = document.getElementById('modal-group-input')
+  var modalDueInput = document.getElementById('modal-due-input')
+  var modalCancel = document.getElementById('modal-cancel')
+  var modalSave = document.getElementById('modal-save')
+  var modalError = document.getElementById('modal-error')
+  var modalGroupSuggestions = document.getElementById('modal-group-suggestions')
 
   // --- State ---
 
   var expandedTasks = new Set()
+  var activeGroup = null       // null = All
+  var editingTaskId = null
+  var allTasksFlat = []        // latest flat task list from server
+
+  // --- Group Color Palette ---
+
+  var GROUP_COLORS = [
+    { bg: 'rgba(34, 211, 238, 0.18)', text: '#22d3ee' },   // cyan
+    { bg: 'rgba(52, 211, 153, 0.18)', text: '#34d399' },    // emerald
+    { bg: 'rgba(96, 165, 250, 0.18)', text: '#60a5fa' },    // blue
+    { bg: 'rgba(251, 191, 36, 0.18)', text: '#fbbf24' },    // yellow
+    { bg: 'rgba(167, 139, 250, 0.18)', text: '#a78bfa' },   // purple
+    { bg: 'rgba(251, 146, 60, 0.18)', text: '#fb923c' },    // orange
+  ]
+
+  function groupColor(name) {
+    var hash = 0
+    for (var i = 0; i < name.length; i++) {
+      hash = ((hash * 31) + name.charCodeAt(i)) & 0xffff
+    }
+    return GROUP_COLORS[hash % GROUP_COLORS.length]
+  }
 
   // --- Status Helpers ---
 
@@ -71,9 +90,122 @@
   function showError(el, message) {
     el.textContent = message
     el.classList.remove('hidden')
-    setTimeout(function () {
-      el.classList.add('hidden')
-    }, 5000)
+    setTimeout(function () { el.classList.add('hidden') }, 5000)
+  }
+
+  // --- Group Filter Bar ---
+
+  function extractGroups(flatTasks) {
+    var seen = new Set()
+    var groups = []
+    for (var i = 0; i < flatTasks.length; i++) {
+      var g = flatTasks[i].group_name
+      if (g && !seen.has(g)) {
+        seen.add(g)
+        groups.push(g)
+      }
+    }
+    return groups.sort(function (a, b) { return a.localeCompare(b) })
+  }
+
+  function renderGroupFilter(groups) {
+    // Always clear
+    while (groupFilterBar.firstChild) groupFilterBar.removeChild(groupFilterBar.firstChild)
+
+    if (groups.length === 0) {
+      groupFilterBar.classList.add('hidden')
+      return
+    }
+    groupFilterBar.classList.remove('hidden')
+
+    // "All" pill
+    groupFilterBar.appendChild(makeGroupPill(null, 'All', activeGroup === null))
+
+    // One pill per group
+    for (var i = 0; i < groups.length; i++) {
+      groupFilterBar.appendChild(makeGroupPill(groups[i], groups[i], activeGroup === groups[i]))
+    }
+  }
+
+  function makeGroupPill(group, label, isActive) {
+    var pill = document.createElement('button')
+    pill.className = 'group-pill' + (isActive ? ' active' : '')
+    pill.textContent = label
+
+    if (group !== null) {
+      var color = groupColor(group)
+      pill.style.color = color.text
+      if (isActive) {
+        pill.style.background = color.bg
+        pill.style.borderColor = color.text
+      }
+    } else {
+      // "All" pill active state
+      if (isActive) {
+        pill.style.color = 'var(--text-primary)'
+        pill.style.borderColor = 'var(--text-muted)'
+        pill.style.background = 'var(--bg-tertiary)'
+      }
+    }
+
+    pill.addEventListener('click', function () {
+      activeGroup = group
+      renderGroupFilter(extractGroups(allTasksFlat))
+      var tree = tasks.buildTaskTree(allTasksFlat)
+      renderTasks(filterTree(tree, activeGroup))
+      updateQuickAddPlaceholder()
+    })
+    return pill
+  }
+
+  function filterTree(tree, group) {
+    if (group === null) return tree
+
+    var filtered = []
+    for (var i = 0; i < tree.length; i++) {
+      var node = filterNode(tree[i], group)
+      if (node) filtered.push(node)
+    }
+    return filtered
+  }
+
+  function filterNode(node, group) {
+    // Filter children recursively
+    var filteredChildren = []
+    if (node.children) {
+      for (var i = 0; i < node.children.length; i++) {
+        var child = filterNode(node.children[i], group)
+        if (child) filteredChildren.push(child)
+      }
+    }
+
+    var selfMatches = node.group_name === group
+    var hasMatchingChildren = filteredChildren.length > 0
+
+    if (!selfMatches && !hasMatchingChildren) return null
+
+    // Return a copy with filtered children
+    var result = Object.assign({}, node, { children: filteredChildren })
+    return result
+  }
+
+  function updateQuickAddPlaceholder() {
+    if (activeGroup) {
+      inputNewTask.placeholder = 'Add to ' + activeGroup + '…'
+    } else {
+      inputNewTask.placeholder = 'Add a task…'
+    }
+  }
+
+  // --- Group Suggestions for Modal ---
+
+  function updateGroupSuggestions(groups) {
+    while (modalGroupSuggestions.firstChild) modalGroupSuggestions.removeChild(modalGroupSuggestions.firstChild)
+    for (var i = 0; i < groups.length; i++) {
+      var opt = document.createElement('option')
+      opt.value = groups[i]
+      modalGroupSuggestions.appendChild(opt)
+    }
   }
 
   // --- Task Rendering ---
@@ -112,13 +244,14 @@
     var content = document.createElement('div')
     content.className = 'task-content'
 
-    var title = document.createElement('div')
-    title.className = 'task-title' + (isDone ? ' done' : '')
-    title.textContent = task.title
-    content.appendChild(title)
+    var titleEl = document.createElement('div')
+    titleEl.className = 'task-title' + (isDone ? ' done' : '')
+    titleEl.textContent = task.title
+    content.appendChild(titleEl)
 
-    // Meta row
-    if (dueInfo || hasChildren) {
+    // Meta row: due date, children count, group tag
+    var hasMeta = dueInfo || hasChildren || task.group_name
+    if (hasMeta) {
       var meta = document.createElement('div')
       meta.className = 'task-meta'
 
@@ -132,11 +265,19 @@
       if (hasChildren) {
         var count = document.createElement('span')
         count.className = 'task-children-count'
-        var doneCount = task.children.filter(function (c) {
-          return c.status === 'done'
-        }).length
+        var doneCount = task.children.filter(function (c) { return c.status === 'done' }).length
         count.textContent = doneCount + '/' + task.children.length + ' done'
         meta.appendChild(count)
+      }
+
+      if (task.group_name) {
+        var groupTag = document.createElement('span')
+        groupTag.className = 'task-group-tag'
+        groupTag.textContent = task.group_name
+        var color = groupColor(task.group_name)
+        groupTag.style.background = color.bg
+        groupTag.style.color = color.text
+        meta.appendChild(groupTag)
       }
 
       content.appendChild(meta)
@@ -163,6 +304,16 @@
       }
     })
     row.appendChild(badge)
+
+    // Edit button
+    var editBtn = document.createElement('button')
+    editBtn.className = 'task-edit'
+    editBtn.title = 'Edit task'
+    editBtn.appendChild(createPencilIcon())
+    editBtn.addEventListener('click', function () {
+      openEditModal(task)
+    })
+    row.appendChild(editBtn)
 
     // Delete button
     var delBtn = document.createElement('button')
@@ -210,6 +361,79 @@
     }
   }
 
+  // --- Edit Modal ---
+
+  function openEditModal(task) {
+    editingTaskId = task.id
+
+    modalTitleInput.value = task.title
+    modalGroupInput.value = task.group_name || ''
+    modalDueInput.value = task.due_at ? task.due_at.slice(0, 10) : ''
+
+    updateGroupSuggestions(extractGroups(allTasksFlat))
+
+    modalError.classList.add('hidden')
+    editModal.classList.remove('hidden')
+    modalTitleInput.focus()
+    modalTitleInput.select()
+  }
+
+  function closeEditModal() {
+    editModal.classList.add('hidden')
+    editingTaskId = null
+  }
+
+  async function saveEdit() {
+    if (!editingTaskId) return
+
+    var title = modalTitleInput.value.trim()
+    if (!title) {
+      showError(modalError, 'Title cannot be empty.')
+      return
+    }
+
+    modalSave.disabled = true
+    modalCancel.disabled = true
+
+    var result = await tasks.patchTask(editingTaskId, {
+      title: title,
+      group_name: modalGroupInput.value.trim() || null,
+      due_at: modalDueInput.value ? new Date(modalDueInput.value).toISOString() : null,
+    })
+
+    modalSave.disabled = false
+    modalCancel.disabled = false
+
+    if (result.ok) {
+      closeEditModal()
+      notifyBadgeRefresh()
+      loadTasks()
+    } else {
+      showError(modalError, result.error)
+    }
+  }
+
+  modalClose.addEventListener('click', closeEditModal)
+  modalCancel.addEventListener('click', closeEditModal)
+  modalSave.addEventListener('click', saveEdit)
+
+  // Close modal on overlay click
+  editModal.addEventListener('click', function (e) {
+    if (e.target === editModal) closeEditModal()
+  })
+
+  // Save on Enter in title/group fields
+  modalTitleInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') saveEdit()
+    if (e.key === 'Escape') closeEditModal()
+  })
+  modalGroupInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeEditModal()
+  })
+  modalDueInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeEditModal()
+  })
+
   // --- Data Loading ---
 
   async function loadTasks() {
@@ -220,8 +444,20 @@
       return
     }
 
-    var tree = tasks.buildTaskTree(result.tasks)
-    renderTasks(tree)
+    allTasksFlat = result.tasks
+
+    var groups = extractGroups(allTasksFlat)
+
+    // If the active group no longer exists in data, reset to All
+    if (activeGroup !== null && !groups.includes(activeGroup)) {
+      activeGroup = null
+    }
+
+    renderGroupFilter(groups)
+
+    var tree = tasks.buildTaskTree(allTasksFlat)
+    renderTasks(filterTree(tree, activeGroup))
+    updateQuickAddPlaceholder()
   }
 
   // --- Event Handlers ---
@@ -233,7 +469,8 @@
     inputNewTask.disabled = true
     btnAddTask.disabled = true
 
-    var result = await tasks.createTask(title)
+    // Automatically assign the active group to new tasks
+    var result = await tasks.createTask(title, null, 0, activeGroup)
 
     inputNewTask.disabled = false
     btnAddTask.disabled = false
@@ -249,12 +486,10 @@
   }
 
   function notifyBadgeRefresh() {
-    chrome.runtime.sendMessage({ type: 'refresh-badge' }).catch(function () {
-      // Background may not be active; ignore
-    })
+    chrome.runtime.sendMessage({ type: 'refresh-badge' }).catch(function () {})
   }
 
-  // --- SVG Icon Helpers (avoid innerHTML for security) ---
+  // --- SVG Icon Helpers ---
 
   var SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -279,6 +514,13 @@
     return svgEl('svg', { width: '14', height: '14', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
       svgEl('line', { x1: '18', y1: '6', x2: '6', y2: '18' }),
       svgEl('line', { x1: '6', y1: '6', x2: '18', y2: '18' })
+    ])
+  }
+
+  function createPencilIcon() {
+    return svgEl('svg', { width: '13', height: '13', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
+      svgEl('path', { d: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7' }),
+      svgEl('path', { d: 'M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' })
     ])
   }
 

@@ -62,6 +62,11 @@
       </button>
     </div>
 
+    <!-- Group Filter Bar -->
+    <div id="group-filter-bar" class="group-filter-bar hidden">
+      <!-- Pills rendered by popup.js -->
+    </div>
+
     <!-- Task List -->
     <div id="task-list" class="task-list">
       <!-- Tasks rendered by popup.js -->
@@ -85,6 +90,40 @@
 
     <!-- Error -->
     <div id="main-error" class="error-msg hidden"></div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Edit task</span>
+        <button id="modal-close" class="btn-icon" title="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label class="field-label" for="modal-title-input">Title</label>
+          <input id="modal-title-input" type="text" class="field-input" maxlength="500" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="modal-group-input">Group</label>
+          <input id="modal-group-input" type="text" class="field-input" placeholder="e.g. school, home, youtube…" maxlength="100" autocomplete="off" list="modal-group-suggestions" />
+          <datalist id="modal-group-suggestions"></datalist>
+        </div>
+        <div class="field">
+          <label class="field-label" for="modal-due-input">Due date</label>
+          <input id="modal-due-input" type="date" class="field-input" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="modal-save" class="btn btn-primary">Save</button>
+      </div>
+      <div id="modal-error" class="error-msg hidden"></div>
+    </div>
   </div>
 
   <!-- Scripts loaded in order: Supabase lib → shared utils → auth client → tasks API → popup UI -->
