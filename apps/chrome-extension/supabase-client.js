@@ -82,63 +82,26 @@
     return _supabase
   }
 
-  /**
-   * Discover the Google OAuth client ID used by our Supabase project.
-   * We fetch the Supabase authorize endpoint with redirect:'manual' and
-   * extract client_id from the Location header pointing to Google.
-   */
-  async function getGoogleClientId() {
-    const authEndpoint =
-      SUPABASE_URL +
-      '/auth/v1/authorize?provider=google&redirect_to=' +
-      encodeURIComponent('https://localhost/callback')
-
-    const res = await fetch(authEndpoint, { redirect: 'manual' })
-
-    const location = res.headers.get('location')
-    if (!location) throw new Error('Could not resolve Google client ID from Supabase.')
-
-    const clientId = new URL(location).searchParams.get('client_id')
-    if (!clientId) throw new Error('Google client_id not found in Supabase redirect.')
-
-    return clientId
-  }
-
-  /**
-   * Sign in with Google via chrome.identity + signInWithIdToken.
-   *
-   * This bypasses Supabase's redirect chain entirely, which avoids the
-   * problem where Supabase doesn't know the published extension's
-   * redirect URL and therefore can't complete the OAuth callback.
-   *
-   * Flow:
-   * 1. Discover Google client ID from Supabase auth config
-   * 2. Build a direct Google OAuth URL with the extension's redirect URL
-   * 3. launchWebAuthFlow → Google sign-in → redirect back to extension
-   * 4. Extract id_token from callback hash
-   * 5. supabase.auth.signInWithIdToken() to create the Supabase session
-   */
   async function signIn() {
     const sb = getSupabase()
     const redirectUrl = chrome.identity.getRedirectURL()
 
-    console.log('[TaskTrasker] Extension redirect URL:', redirectUrl)
+    const { data, error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: true,
+      },
+    })
 
-    const clientId = await getGoogleClientId()
+    if (error) throw error
 
-    const nonce = crypto.randomUUID()
-
-    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
-    googleAuthUrl.searchParams.set('client_id', clientId)
-    googleAuthUrl.searchParams.set('redirect_uri', redirectUrl)
-    googleAuthUrl.searchParams.set('response_type', 'id_token')
-    googleAuthUrl.searchParams.set('scope', 'openid email profile')
-    googleAuthUrl.searchParams.set('nonce', nonce)
-    googleAuthUrl.searchParams.set('prompt', 'select_account')
+    const authUrl = new URL(data.url)
+    authUrl.searchParams.delete('skip_http_redirect')
 
     const responseUrl = await new Promise((resolve, reject) => {
       chrome.identity.launchWebAuthFlow(
-        { url: googleAuthUrl.toString(), interactive: true },
+        { url: authUrl.toString(), interactive: true },
         (callbackUrl) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message))
@@ -150,21 +113,26 @@
     })
 
     const hashParams = new URLSearchParams(responseUrl.split('#')[1] || '')
-    const idToken = hashParams.get('id_token')
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
 
-    if (!idToken) {
-      throw new Error('Authentication failed: no id_token received from Google.')
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await sb.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+      if (sessionError) throw sessionError
+      return await sb.auth.getUser()
     }
 
-    const { error: signInError } = await sb.auth.signInWithIdToken({
-      provider: 'google',
-      token: idToken,
-      nonce,
-    })
+    const code = new URL(responseUrl).searchParams.get('code')
+    if (code) {
+      const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code)
+      if (exchangeError) throw exchangeError
+      return await sb.auth.getUser()
+    }
 
-    if (signInError) throw signInError
-
-    return await sb.auth.getUser()
+    throw new Error('Authentication failed: no tokens or authorization code received.')
   }
 
   async function signOut() {
