@@ -1,0 +1,171 @@
+name: Deploy Chrome Extension
+
+on:
+  push:
+    branches: ['**']
+    paths: ['apps/chrome-extension/**']
+  pull_request:
+    branches: [main]
+    paths: ['apps/chrome-extension/**']
+  release:
+    types: [published]
+
+permissions:
+  contents: write # needed to attach zip to release
+
+concurrency:
+  group: chrome-ext-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Package (push / PR) ── produces a downloadable zip for manual testing ──
+
+  package:
+    name: Lint & package extension
+    runs-on: ubuntu-latest
+    if: github.event_name != 'release'
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run extension unit tests
+        working-directory: apps/chrome-extension
+        run: npm test
+
+      - name: Lint extension with web-ext (Chrome-only, Firefox warnings tolerated)
+        run: |
+          # Show human-readable output for logs
+          npx web-ext lint --source-dir apps/chrome-extension --self-hosted 2>&1 || true
+          # Fail only on errors that are NOT Firefox-specific
+          REAL_ERRORS=$(npx web-ext lint --source-dir apps/chrome-extension --self-hosted \
+            --output json 2>/dev/null \
+            | jq '[.errors[] | select(
+                .code != "BACKGROUND_SERVICE_WORKER_NOFALLBACK" and
+                .code != "ADDON_ID_REQUIRED"
+              )] | length')
+          echo "Non-Firefox errors: $REAL_ERRORS"
+          if [ "$REAL_ERRORS" -gt 0 ]; then
+            echo "::error::Extension has $REAL_ERRORS lint error(s). See output above."
+            exit 1
+          fi
+
+      - name: Create extension zip
+        working-directory: apps/chrome-extension
+        run: |
+          zip -r ../../chrome-extension.zip . \
+            -x "README.md" ".*" "package.json" "test/*"
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension-zip
+          path: chrome-extension.zip
+          if-no-files-found: error
+
+  # ── Release (ext-v* tags) ── validates, zips, and publishes to Web Store ──
+
+  validate:
+    name: Validate & package extension
+    runs-on: ubuntu-latest
+    # Only run for releases tagged ext-v* (e.g. ext-v0.2.0)
+    if: startsWith(github.event.release.tag_name, 'ext-v')
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#ext-v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extension version: $VERSION"
+
+      - name: Sync manifest.json version with release tag
+        working-directory: apps/chrome-extension
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          echo "manifest.json version set to: $(jq -r .version manifest.json)"
+
+      - name: Run extension unit tests
+        working-directory: apps/chrome-extension
+        run: npm test
+
+      - name: Lint extension with web-ext (Chrome-only, Firefox warnings tolerated)
+        run: |
+          npx web-ext lint --source-dir apps/chrome-extension --self-hosted 2>&1 || true
+          REAL_ERRORS=$(npx web-ext lint --source-dir apps/chrome-extension --self-hosted \
+            --output json 2>/dev/null \
+            | jq '[.errors[] | select(
+                .code != "BACKGROUND_SERVICE_WORKER_NOFALLBACK" and
+                .code != "ADDON_ID_REQUIRED"
+              )] | length')
+          echo "Non-Firefox errors: $REAL_ERRORS"
+          if [ "$REAL_ERRORS" -gt 0 ]; then
+            echo "::error::Extension has $REAL_ERRORS lint error(s). See output above."
+            exit 1
+          fi
+
+      - name: Create extension zip
+        working-directory: apps/chrome-extension
+        run: |
+          zip -r ../../extension-${{ steps.version.outputs.version }}.zip . \
+            -x "README.md" ".*" "package.json" "test/*"
+
+      - name: Upload zip as release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            extension-${{ steps.version.outputs.version }}.zip \
+            --clobber
+
+      - name: Upload zip artifact for deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-zip
+          path: extension-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+  deploy:
+    name: Upload to Chrome Web Store
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 5
+
+    steps:
+      - name: Download extension zip
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-zip
+
+      - name: Find zip file
+        id: zip
+        run: |
+          ZIP=$(ls extension-*.zip)
+          echo "path=$ZIP" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v5.0.0
+        with:
+          file-path: ${{ steps.zip.outputs.path }}
+          extension-id: ${{ secrets.CWS_EXTENSION_ID }}
+          client-id: ${{ secrets.CWS_CLIENT_ID }}
+          client-secret: ${{ secrets.CWS_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CWS_REFRESH_TOKEN }}
+          publish: true

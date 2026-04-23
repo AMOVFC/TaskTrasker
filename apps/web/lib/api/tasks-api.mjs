@@ -1,5 +1,5 @@
 export const TASK_SELECT_FIELDS =
-  'id,user_id,parent_id,blocking_task_id,title,status,force_completed,due_at,sort_order,created_at,updated_at'
+  'id,user_id,parent_id,blocking_task_id,title,status,force_completed,due_at,sort_order,group_name,created_at,updated_at'
 
 export const TASK_STATUS_VALUES = Object.freeze(['todo', 'in_progress', 'blocked', 'delayed', 'done'])
 
@@ -140,12 +140,22 @@ export function validateCreateTaskPayload(payload) {
     }
   }
 
+  const groupName = payload.group_name
+  if (!(groupName === undefined || groupName === null || (typeof groupName === 'string' && groupName.trim().length > 0))) {
+    return {
+      ok: false,
+      status: 400,
+      error: buildError('invalid_group_name', 'group_name must be null or a non-empty string when provided.'),
+    }
+  }
+
   return {
     ok: true,
     value: {
       title,
       parent_id: parentId ?? null,
       sort_order: sortOrder ?? 0,
+      group_name: typeof groupName === 'string' ? groupName.trim() : null,
     },
   }
 }
@@ -159,7 +169,7 @@ export function validatePatchTaskPayload(payload) {
     }
   }
 
-  const allowedKeys = new Set(['title', 'status', 'due_at', 'parent_id', 'sort_order', 'blocking_task_id', 'force_completed'])
+  const allowedKeys = new Set(['title', 'status', 'due_at', 'parent_id', 'sort_order', 'blocking_task_id', 'force_completed', 'group_name'])
   const payloadKeys = Object.keys(payload)
   const unknownKeys = payloadKeys.filter((key) => !allowedKeys.has(key))
 
@@ -276,6 +286,20 @@ export function validatePatchTaskPayload(payload) {
     }
   }
 
+  if ('group_name' in payload) {
+    if (payload.group_name === null) {
+      value.group_name = null
+    } else if (typeof payload.group_name === 'string' && payload.group_name.trim().length > 0) {
+      value.group_name = payload.group_name.trim()
+    } else {
+      return {
+        ok: false,
+        status: 400,
+        error: buildError('invalid_group_name', 'group_name must be null or a non-empty string.'),
+      }
+    }
+  }
+
   if (Object.keys(value).length === 0) {
     return {
       ok: false,
@@ -313,6 +337,7 @@ export async function createTaskForUser(supabase, userId, payload, nowIso) {
       user_id: userId,
       parent_id: payload.parent_id,
       sort_order: payload.sort_order,
+      group_name: payload.group_name ?? null,
       status: 'todo',
       updated_at: nowIso,
     })

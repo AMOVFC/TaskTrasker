@@ -140,6 +140,27 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Chrome Extension Banner */}
+          <div className="bg-slate-800/50 rounded-xl p-5 border border-cyan-500/30 text-left flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-lg font-bold">
+              T
+            </div>
+            <div>
+              <p className="text-slate-200 text-sm leading-relaxed">
+                As part of our development, we&apos;re excited to offer a <span className="text-cyan-400 font-semibold">TaskTrasker Google Chrome Extension</span> — so you can take your tasks with you wherever you go.
+              </p>
+              <a
+                href="https://chromewebstore.google.com/detail/tasktrasker/iedeiickhpfehlpfbenfccfjmakhnjmg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium"
+              >
+                Get it on the Chrome Web Store
+                <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
           {accountDeleted ? (
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
               Your TaskTrasker workspace data has been deleted and you have been signed out.
