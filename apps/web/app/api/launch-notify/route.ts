@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../lib/supabase/server'
+import { resend, FROM_EMAIL } from '../../../lib/email/resend'
+import { signupConfirmationEmail } from '../../../lib/email/templates/signup-confirmation'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -28,6 +30,14 @@ export async function POST(request: Request) {
         { error: 'Unable to save your email right now. Please try again.' },
         { status: 502 },
       )
+    }
+
+    // Send confirmation email — non-blocking; a failure here doesn't break signup
+    if (resend) {
+      const { subject, html, text } = signupConfirmationEmail(email)
+      resend.emails
+        .send({ from: FROM_EMAIL, to: email, subject, html, text })
+        .catch((err: unknown) => console.error('resend send error:', err))
     }
 
     return NextResponse.json({ success: true })
