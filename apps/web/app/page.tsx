@@ -12,7 +12,6 @@ import { createClient as createSupabaseClient } from '../lib/supabase/client'
 
 export default function Home() {
   const [email, setEmail] = useState('')
-  const [accepted, setAccepted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -174,61 +173,47 @@ export default function Home() {
               Get notified when tasktrasker v1 launches
             </p>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md mx-auto">
-              <div className="flex gap-3">
-                <div className="flex-1 relative">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all"
-                  />
-                  <Mail className="absolute right-4 top-3.5 w-5 h-5 text-slate-500" />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || submitted || !accepted}
-                  className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
-                    submitted
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : loading || !accepted
-                      ? 'bg-slate-700 text-slate-400 opacity-50 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-blue-500/50'
-                  }`}
-                >
-                  {submitted ? (
-                    <>
-                      <Check className="w-5 h-5" />
-                      Got it!
-                    </>
-                  ) : loading ? (
-                    <>
-                      <span className="inline-block animate-spin">⏳</span>
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      Notify Me
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <label className="flex items-start gap-2.5 cursor-pointer text-left">
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <div className="flex-1 relative">
                 <input
-                  type="checkbox"
-                  checked={accepted}
-                  onChange={(e) => setAccepted(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/50 focus:ring-offset-slate-900 cursor-pointer"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 />
-                <span className="text-xs text-slate-400 leading-relaxed">
-                  I agree to receive launch updates and product news from TaskTrasker. You can unsubscribe at any time.
-                </span>
-              </label>
+                <Mail className="absolute right-4 top-3.5 w-5 h-5 text-slate-500" />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading || submitted}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+                  submitted
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : loading
+                    ? 'bg-slate-700 text-slate-400 opacity-50 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-blue-500/50'
+                }`}
+              >
+                {submitted ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Got it!
+                  </>
+                ) : loading ? (
+                  <>
+                    <span className="inline-block animate-spin">⏳</span>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    Notify Me
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
             </form>
 
             {submitted && (
